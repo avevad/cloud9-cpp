@@ -39,6 +39,9 @@ static bool is_valid_login(const std::string &login) {
 }
 
 static const char PATH_DIV = '/';
+static const char CLOUD_PATH_DIV = '/';
+static const char CLOUD_PATH_HOME = '~';
+static const char CLOUD_PATH_NODE = '#';
 
 static const int INIT_BODY_MAX_SIZE = 1024 * 8; // 8 KiB
 static const int INIT_CMD_AUTH = 1;
@@ -100,6 +103,33 @@ static std::string node2string(Node node) {
         s[i * 2 + 1] = d2 < 10 ? ('0' + d2) : ('a' - 10 + d2);
     }
     return s;
+}
+
+static Node string2node(const std::string &s) {
+    if (s.length() != 2 * NODE_ID_LENGTH) throw std::invalid_argument("invalid node string '" + s + "'");
+    Node node;
+    for (size_t i = 0; i < NODE_ID_LENGTH; i++) {
+        auto c1 = s[i * 2];
+        auto c2 = s[i * 2 + 1];
+        unsigned d1;
+        if (c1 >= '0' && c1 <= '9') {
+            d1 = c1 - '0';
+        } else if (c1 >= 'a' && c1 <= 'f') {
+            d1 = c1 - 'a' + 10;
+        } else if (c1 >= 'A' && c1 <= 'F') {
+            d1 = c1 - 'A' + 10;
+        } else throw std::invalid_argument("invalid node string '" + s + "'");
+        unsigned d2;
+        if (c2 >= '0' && c2 <= '9') {
+            d2 = c2 - '0';
+        } else if (c2 >= 'a' && c2 <= 'f') {
+            d2 = c2 - 'a' + 10;
+        } else if (c2 >= 'A' && c2 <= 'F') {
+            d2 = c2 - 'A' + 10;
+        } else throw std::invalid_argument("invalid node string '" + s + "'");
+        node.id[i] = d1 * 0x10 + d2;
+    }
+    return node;
 }
 
 #endif //CLOUD9_CLOUD_COMMON_H
