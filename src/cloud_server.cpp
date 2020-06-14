@@ -86,7 +86,7 @@ void CloudServer::listener_routine(Session *session) {
             body = new char[size];
             read_exact(session->connection, size, body);
             if (cmd == REQUEST_CMD_GET_HOME) {
-                std::string user(body, size);
+                std::string user = size == 0 ? session->login : std::string(body, size);
                 std::string user_file_path = config.users_directory + PATH_DIV + user;
                 if (!std::filesystem::is_regular_file(user_file_path)) {
                     send_any(session->connection, REQUEST_ERR_NOT_FOUND);
