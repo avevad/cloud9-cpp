@@ -22,6 +22,8 @@ public:
     Node get_home();
 
     void list_directory(Node node, const std::function<void(std::string, Node)> &callback);
+
+    void get_parent(Node node, Node *parent, bool *has_parent);
 };
 
 #endif //CLOUD9_CLOUD_CLIENT_H

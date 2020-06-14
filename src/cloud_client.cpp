@@ -77,3 +77,22 @@ void CloudClient::list_directory(Node node, const std::function<void(std::string
     }
     delete[] buffer;
 }
+
+void CloudClient::get_parent(Node node, Node *parent, bool *has_parent) {
+    std::unique_lock<std::mutex> locker(lock);
+    send_any(connection, REQUEST_CMD_GET_PARENT);
+    send_any(connection, sizeof(Node));
+    send_exact(connection, sizeof(Node), &node);
+    auto status = read_any<int>(connection);
+    auto size = read_any<size_t>(connection);
+    auto *buffer = new unsigned char[size];
+    read_exact(connection, size, buffer);
+    if (status != REQUEST_OK) {
+        delete[] buffer;
+        throw std::runtime_error(request_status_string(status));
+    }
+    bool result = size == sizeof(Node);
+    if (has_parent) *has_parent = result;
+    if (result && parent) *parent = *reinterpret_cast<Node *>(buffer);
+    delete[] buffer;
+}

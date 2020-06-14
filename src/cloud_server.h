@@ -40,7 +40,7 @@ private:
 
     void listener_routine(Session *);
 
-    char *get_node_head(Node node);
+    std::pair<char *, size_t> get_node_head(Node node);
 
     std::string get_node_data_path(Node node);
 public:

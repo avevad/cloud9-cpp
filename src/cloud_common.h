@@ -55,6 +55,7 @@ static const int REQUEST_BODY_MAX_SIZE = 1024 * 1024 * 8; // 8 MiB
 static const int REQUEST_CMD_GET_HOME = 1;
 static const int REQUEST_CMD_LIST_DIRECTORY = 2;
 static const int REQUEST_CMD_GOODBYE = 3;
+static const int REQUEST_CMD_GET_PARENT = 4;
 static const int REQUEST_OK = 0;
 static const int REQUEST_ERR_BODY_TOO_LARGE = 1;
 static const int REQUEST_ERR_INVALID_CMD = 2;
@@ -64,17 +65,20 @@ static const int REQUEST_ERR_NOT_A_DIRECTORY = 5;
 
 static const size_t USER_PASSWORD_SALT_LENGTH = 32;
 
-static const size_t NODE_HEAD_TYPE_OFFSET = 0;
+static const size_t NODE_HEAD_OFFSET_TYPE = 0;
+static const size_t NODE_HEAD_OFFSET_RIGHTS = 1;
+static const size_t NODE_HEAD_OFFSET_OWNER_GROUP_SIZE = 2;
+static const size_t NODE_HEAD_OFFSET_OWNER_GROUP = 3;
 
 static const int NODE_TYPE_FILE = 0;
 static const int NODE_TYPE_DIRECTORY = 1;
 
 static std::string init_status_string(int status) {
-    if(status == INIT_OK) return "init OK";
-    else if(status == INIT_ERR_BODY_TOO_LARGE) return "init body is too large";
-    else if(status == INIT_ERR_INVALID_CMD) return "unknown init command";
-    else if(status == INIT_ERR_AUTH_FAILED) return "access denied";
-    else if(status == INIT_ERR_MALFORMED_CMD) return "malformed init command";
+    if (status == INIT_OK) return "init OK";
+    else if (status == INIT_ERR_BODY_TOO_LARGE) return "init body is too large";
+    else if (status == INIT_ERR_INVALID_CMD) return "unknown init command";
+    else if (status == INIT_ERR_AUTH_FAILED) return "access denied";
+    else if (status == INIT_ERR_MALFORMED_CMD) return "malformed init command";
     else return "unknown init error (" + std::to_string(status) + ")";
 }
 

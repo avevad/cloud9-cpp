@@ -9,11 +9,25 @@ CloudConfig::CloudConfig() = default;
 
 CloudConfig::~CloudConfig() = default;
 
-
 CloudServer::CloudServer(NetServer *net, const CloudConfig &config) : config(config), net(net),
                                                                       connector(new std::thread(
                                                                               [this] { connector_routine(); })) {
 
+}
+
+CloudServer::~CloudServer() {
+    shutting_down = true;
+    net->destroy();
+    if (connector->joinable()) connector->join();
+    delete connector;
+    delete net;
+    for (Session *session : sessions) {
+        session->connection->close();
+    }
+    for (std::thread *listener : listeners) {
+        if (listener->joinable()) listener->join();
+        delete listener;
+    }
 }
 
 void CloudServer::connector_routine() {
@@ -107,13 +121,13 @@ void CloudServer::listener_routine(Session *session) {
                     continue;
                 }
                 Node node = *(Node *) body;
-                char *node_head = get_node_head(node);
+                auto[node_head, head_size] = get_node_head(node);
                 if (!node_head) {
                     send_any(session->connection, REQUEST_ERR_NOT_FOUND);
                     send_any<size_t>(session->connection, 0);
                     continue;
                 }
-                int type = *(node_head + NODE_HEAD_TYPE_OFFSET);
+                int type = *(node_head + NODE_HEAD_OFFSET_TYPE);
                 delete[] node_head;
                 if (type != NODE_TYPE_DIRECTORY) {
                     send_any(session->connection, REQUEST_ERR_NOT_A_DIRECTORY);
@@ -131,6 +145,38 @@ void CloudServer::listener_routine(Session *session) {
                 send_any(session->connection, REQUEST_OK);
                 send_any<size_t>(session->connection, size);
                 send_exact(session->connection, size, body);
+            } else if (cmd == REQUEST_CMD_GET_PARENT) {
+                if (size != sizeof(Node)) {
+                    send_any(session->connection, REQUEST_ERR_MALFORMED_CMD);
+                    send_any<size_t>(session->connection, 0);
+                    continue;
+                }
+                Node node = *(Node *) body;
+                auto[node_head, node_size] = get_node_head(node);
+                if (!node_head) {
+                    send_any(session->connection, REQUEST_ERR_NOT_FOUND);
+                    send_any<size_t>(session->connection, 0);
+                    continue;
+                }
+                auto owner_size = (size_t) *(unsigned char *) (node_head + NODE_HEAD_OFFSET_OWNER_GROUP_SIZE);
+                Node *parent = reinterpret_cast<Node *>(node_head + NODE_HEAD_OFFSET_OWNER_GROUP + owner_size);
+                Node result;
+                bool ok;
+                if (parent >= reinterpret_cast<Node *>(node_head + node_size)) {
+                    ok = false;
+                } else {
+                    result = *parent;
+                    ok = true;
+                }
+                delete node_head;
+                if (ok) {
+                    send_any(session->connection, REQUEST_OK);
+                    send_any(session->connection, sizeof(Node));
+                    send_exact(session->connection, sizeof(Node), &result);
+                } else {
+                    send_any(session->connection, REQUEST_OK);
+                    send_any<size_t>(session->connection, 0);
+                }
             } else {
                 send_any(session->connection, REQUEST_ERR_INVALID_CMD);
                 send_any<size_t>(session->connection, 0);
@@ -152,29 +198,14 @@ void CloudServer::wait_destroy() {
     if (connector->joinable()) connector->join();
 }
 
-CloudServer::~CloudServer() {
-    shutting_down = true;
-    net->destroy();
-    if (connector->joinable()) connector->join();
-    delete connector;
-    delete net;
-    for (Session *session : sessions) {
-        session->connection->close();
-    }
-    for (std::thread *listener : listeners) {
-        if (listener->joinable()) listener->join();
-        delete listener;
-    }
-}
-
-char *CloudServer::get_node_head(Node node) {
+std::pair<char *, size_t> CloudServer::get_node_head(Node node) {
     std::string node_file_path = config.nodes_head_directory + PATH_DIV + node2string(node);
-    if (!std::filesystem::is_regular_file(node_file_path)) return nullptr;
+    if (!std::filesystem::is_regular_file(node_file_path)) return {nullptr, 0};
     std::ifstream node_file(node_file_path);
     std::string node_string((std::istreambuf_iterator<char>(node_file)), std::istreambuf_iterator<char>());
     char *node_head = new char[node_string.size() + 1];
-    strcpy(node_head, node_string.c_str());
-    return node_head;
+    memcpy(node_head, node_string.c_str(), node_string.length());
+    return {node_head, node_string.length()};
 }
 
 std::string CloudServer::get_node_data_path(Node node) {
