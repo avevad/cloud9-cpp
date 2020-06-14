@@ -39,6 +39,57 @@ std::string parse_command(const std::string &command, std::vector<std::string> &
     return "";
 }
 
+bool is_absolute_path(const std::string &path) {
+    return path[0] == CLOUD_PATH_HOME || path[0] == CLOUD_PATH_NODE;
+}
+
+std::string get_absolute_path_base(const std::string &path) {
+    return path.substr(0, path.find(CLOUD_PATH_DIV));
+}
+
+Node get_absolute_path_base_node(CloudClient *client, const std::string &base) {
+    if (base[0] == CLOUD_PATH_NODE) {
+        return string2node(base.substr(1));
+    } else if (base[0] == CLOUD_PATH_HOME) {
+        return client->get_home(base.substr(1));
+    } else throw std::invalid_argument("invalid base " + base);
+}
+
+Node get_relative_path_node(CloudClient *client, Node base, const std::string &path) {
+    std::vector<std::string> parts;
+    size_t start = 0;
+    for (size_t pos = 0; pos < path.length(); pos++) {
+        if (path[pos] == '/') {
+            parts.push_back(path.substr(start, pos - start));
+            start = pos + 1;
+        }
+    }
+    parts.push_back(path.substr(start, path.size()));
+    Node current = base;
+    for (const std::string &part : parts) {
+        if (part.empty() || part == ".") continue;
+        else if (part == "..") client->get_parent(current, &current, nullptr);
+        else {
+            bool found = false;
+            client->list_directory(current, [&](const std::string &name, Node child) {
+                if (name == part) {
+                    found = true;
+                    current = child;
+                }
+            });
+            if (!found) throw std::runtime_error("'" + part + "' not found");
+        }
+    }
+    return current;
+}
+
+Node get_path_node(CloudClient *client, Node cwd, const std::string &path) {
+    if (is_absolute_path(path)) {
+        std::string base = get_absolute_path_base(path);
+        return get_relative_path_node(client, get_absolute_path_base_node(client, base), path.substr(base.length()));
+    } else return get_relative_path_node(client, cwd, path);
+}
+
 int main(int argc, const char **argv) {
     signal(SIGPIPE, [](int) {});
     if (argc != 3 && argc != 4) {
@@ -95,6 +146,19 @@ int main(int argc, const char **argv) {
                     std::cout << name << std::endl;
                 });
             };
+            commands["cd"] = [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
+                if (args.empty()) {
+                    cwd = client->get_home();
+                } else if (args.size() == 1) {
+                    cwd = get_path_node(client, cwd, args[0]);
+                } else std::cerr << "too much arguments" << std::endl;
+            };
+            commands["pwd"] = [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
+                if (!args.empty()) std::cerr << "too much arguments" << std::endl;
+                else {
+                    std::cout << "#" << node2string(cwd) << std::endl;
+                }
+            };
         }
 
         Node cwd = client->get_home(argv[3]);
@@ -123,7 +187,7 @@ int main(int argc, const char **argv) {
                     } else std::cerr << "no such command: " << command_name << std::endl;
                 }
             } else std::cerr << "failed to parse command: " << error << std::endl;
-            if(!connection->is_valid()) {
+            if (!connection->is_valid()) {
                 std::cerr << "Connection lost, exiting" << std::endl;
                 fail = true;
                 break;
@@ -132,6 +196,6 @@ int main(int argc, const char **argv) {
         delete client;
         connection->close();
         delete connection;
-        if(fail) return 1;
+        if (fail) return 1;
     }
 }
