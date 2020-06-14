@@ -49,24 +49,7 @@ Node CloudClient::get_home(const std::string &user) {
 }
 
 Node CloudClient::get_home() {
-    std::unique_lock<std::mutex> locker(lock);
-    send_any(connection, REQUEST_CMD_GET_HOME);
-    send_any<size_t>(connection, 0);
-    auto status = read_any<int>(connection);
-    auto size = read_any<size_t>(connection);
-    auto *buffer = new unsigned char[size];
-    read_exact(connection, size, buffer);
-    if (status != REQUEST_OK) {
-        delete[] buffer;
-        throw std::runtime_error(request_status_string(status));
-    }
-    if (size != sizeof(Node)) {
-        delete[] buffer;
-        throw std::runtime_error("server error");
-    }
-    Node node = *(Node *) buffer;
-    delete[] buffer;
-    return node;
+    return get_home("");
 }
 
 void CloudClient::list_directory(Node node, const std::function<void(std::string, Node)> &callback) {
