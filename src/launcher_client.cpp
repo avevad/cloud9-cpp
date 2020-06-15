@@ -178,7 +178,7 @@ int main(int argc, const char **argv) {
                 if (!command_store.empty()) {
                     std::string command_name = command_store.front();
                     command_store.erase(command_store.begin());
-                    if (commands.contains(command_name)) {
+                    if (commands.find(command_name) != commands.end()) {
                         try {
                             commands[command_name](client, cwd, command_store);
                         } catch (std::runtime_error &error) {

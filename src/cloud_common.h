@@ -3,6 +3,7 @@
 
 #include <string>
 #include <cstring>
+#include <algorithm>
 #include "networking.h"
 
 static void read_exact(NetConnection *connection, uint64_t size, void *buffer) {
