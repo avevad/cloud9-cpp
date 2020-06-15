@@ -48,18 +48,18 @@ void CloudServer::connector_routine() {
 void CloudServer::listener_routine(Session *session) {
     char *body = nullptr;
     try {
-#define INIT_ERR(err) {send_any(session->connection, err); throw std::runtime_error(init_status_string(err));}
-        auto cmd = read_any<int>(session->connection);
-        auto size = read_any<size_t>(session->connection);
+#define INIT_ERR(err) {send_uint16(session->connection, err); throw std::runtime_error(init_status_string(err));}
+        auto cmd = read_uint16(session->connection);
+        auto size = read_uint64(session->connection);
         if (size > INIT_BODY_MAX_SIZE) INIT_ERR(INIT_ERR_BODY_TOO_LARGE);
         body = new char[size];
         read_exact(session->connection, size, body);
         if (cmd == INIT_CMD_AUTH) {
             if (size == 0) INIT_ERR(INIT_ERR_MALFORMED_CMD);
-            size_t login_length = *(size_t *) body;
-            if (login_length > size - sizeof(size_t)) INIT_ERR(INIT_ERR_MALFORMED_CMD);
-            session->login = std::string(body + sizeof(size_t), login_length);
-            std::string password(body + sizeof(size_t) + login_length, body + size);
+            uint8_t login_length = *(uint8_t *) body;
+            if (login_length > size - sizeof(uint8_t)) INIT_ERR(INIT_ERR_MALFORMED_CMD);
+            session->login = std::string(body + sizeof(uint8_t), login_length);
+            std::string password(body + sizeof(uint8_t) + login_length, body + size);
             if (!is_valid_login(session->login)) INIT_ERR(INIT_ERR_AUTH_FAILED);
             std::string user_file_path = config.users_directory + PATH_DIV + session->login;
             if (!std::filesystem::is_regular_file(user_file_path)) INIT_ERR(INIT_ERR_AUTH_FAILED);
@@ -73,7 +73,7 @@ void CloudServer::listener_routine(Session *session) {
             std::string sha256_real = user_string.substr(USER_PASSWORD_SALT_LENGTH, SHA256_DIGEST_LENGTH);
             bool ok = strcmp(sha256, sha256_real.c_str()) == 0;
             delete[] sha256;
-            if (ok) send_any(session->connection, INIT_OK);
+            if (ok) send_uint16(session->connection, INIT_OK);
             else INIT_ERR(INIT_ERR_AUTH_FAILED);
         } else INIT_ERR(INIT_ERR_INVALID_CMD);
 #undef INIT_ERR
@@ -89,11 +89,11 @@ void CloudServer::listener_routine(Session *session) {
     bool goodbye = false;
     try {
         while (true) {
-            auto cmd = read_any<int>(session->connection);
-            auto size = read_any<size_t>(session->connection);
+            auto cmd = read_uint16(session->connection);
+            auto size = read_uint64(session->connection);
             if (size > REQUEST_BODY_MAX_SIZE) {
-                send_any(session->connection, REQUEST_ERR_BODY_TOO_LARGE);
-                send_any<size_t>(session->connection, 0);
+                send_uint16(session->connection, REQUEST_ERR_BODY_TOO_LARGE);
+                send_uint64(session->connection, 0);
                 throw std::runtime_error(request_status_string(REQUEST_ERR_BODY_TOO_LARGE));
             }
             delete[] body;
@@ -103,59 +103,59 @@ void CloudServer::listener_routine(Session *session) {
                 std::string user = size == 0 ? session->login : std::string(body, size);
                 std::string user_file_path = config.users_directory + PATH_DIV + user;
                 if (!std::filesystem::is_regular_file(user_file_path)) {
-                    send_any(session->connection, REQUEST_ERR_NOT_FOUND);
-                    send_any<size_t>(session->connection, 0);
+                    send_uint16(session->connection, REQUEST_ERR_NOT_FOUND);
+                    send_uint64(session->connection, 0);
                 } else {
                     std::ifstream user_file(user_file_path);
                     std::string user_string((std::istreambuf_iterator<char>(user_file)),
                                             std::istreambuf_iterator<char>());
                     Node *node = (Node *) (user_string.c_str() + USER_PASSWORD_SALT_LENGTH + SHA256_DIGEST_LENGTH);
-                    send_any(session->connection, REQUEST_OK);
-                    send_any(session->connection, sizeof(Node));
-                    send_any(session->connection, *node);
+                    send_uint16(session->connection, REQUEST_OK);
+                    send_uint64(session->connection, sizeof(Node));
+                    send_exact(session->connection, sizeof(Node), node);
                 }
             } else if (cmd == REQUEST_CMD_LIST_DIRECTORY) {
                 if (size != sizeof(Node)) {
-                    send_any(session->connection, REQUEST_ERR_MALFORMED_CMD);
-                    send_any<size_t>(session->connection, 0);
+                    send_uint16(session->connection, REQUEST_ERR_MALFORMED_CMD);
+                    send_uint64(session->connection, 0);
                     continue;
                 }
                 Node node = *(Node *) body;
                 auto[node_head, head_size] = get_node_head(node);
                 if (!node_head) {
-                    send_any(session->connection, REQUEST_ERR_NOT_FOUND);
-                    send_any<size_t>(session->connection, 0);
+                    send_uint16(session->connection, REQUEST_ERR_NOT_FOUND);
+                    send_uint64(session->connection, 0);
                     continue;
                 }
                 int type = *(node_head + NODE_HEAD_OFFSET_TYPE);
                 delete[] node_head;
                 if (type != NODE_TYPE_DIRECTORY) {
-                    send_any(session->connection, REQUEST_ERR_NOT_A_DIRECTORY);
-                    send_any<size_t>(session->connection, 0);
+                    send_uint16(session->connection, REQUEST_ERR_NOT_A_DIRECTORY);
+                    send_uint64(session->connection, 0);
                     continue;
                 }
                 std::ifstream node_data_file(get_node_data_path(node));
                 std::string node_data((std::istreambuf_iterator<char>(node_data_file)),
                                       std::istreambuf_iterator<char>());
-                send_any(session->connection, REQUEST_OK);
-                send_any<size_t>(session->connection, node_data.size());
+                send_uint16(session->connection, REQUEST_OK);
+                send_uint64(session->connection, node_data.size());
                 send_exact(session->connection, node_data.size(), node_data.c_str());
             } else if (cmd == REQUEST_CMD_GOODBYE) {
                 goodbye = true;
-                send_any(session->connection, REQUEST_OK);
-                send_any<size_t>(session->connection, size);
+                send_uint16(session->connection, REQUEST_OK);
+                send_uint64(session->connection, size);
                 send_exact(session->connection, size, body);
             } else if (cmd == REQUEST_CMD_GET_PARENT) {
                 if (size != sizeof(Node)) {
-                    send_any(session->connection, REQUEST_ERR_MALFORMED_CMD);
-                    send_any<size_t>(session->connection, 0);
+                    send_uint16(session->connection, REQUEST_ERR_MALFORMED_CMD);
+                    send_uint64(session->connection, 0);
                     continue;
                 }
                 Node node = *(Node *) body;
                 auto[node_head, node_size] = get_node_head(node);
                 if (!node_head) {
-                    send_any(session->connection, REQUEST_ERR_NOT_FOUND);
-                    send_any<size_t>(session->connection, 0);
+                    send_uint16(session->connection, REQUEST_ERR_NOT_FOUND);
+                    send_uint64(session->connection, 0);
                     continue;
                 }
                 auto owner_size = (size_t) *(unsigned char *) (node_head + NODE_HEAD_OFFSET_OWNER_GROUP_SIZE);
@@ -170,16 +170,16 @@ void CloudServer::listener_routine(Session *session) {
                 }
                 delete node_head;
                 if (ok) {
-                    send_any(session->connection, REQUEST_OK);
-                    send_any(session->connection, sizeof(Node));
+                    send_uint16(session->connection, REQUEST_OK);
+                    send_uint64(session->connection, sizeof(Node));
                     send_exact(session->connection, sizeof(Node), &result);
                 } else {
-                    send_any(session->connection, REQUEST_OK);
-                    send_any<size_t>(session->connection, 0);
+                    send_uint16(session->connection, REQUEST_OK);
+                    send_uint64(session->connection, 0);
                 }
             } else {
-                send_any(session->connection, REQUEST_ERR_INVALID_CMD);
-                send_any<size_t>(session->connection, 0);
+                send_uint16(session->connection, REQUEST_ERR_INVALID_CMD);
+                send_uint64(session->connection, 0);
             }
         }
     } catch (std::exception &exception) {
