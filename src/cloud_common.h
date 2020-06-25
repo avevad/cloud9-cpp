@@ -97,10 +97,13 @@ static bool is_valid_login(const std::string &login) {
     return true;
 }
 
+static const uint16_t CLOUD_DEFAULT_PORT = 909;
+
 static const char PATH_DIV = '/';
 static const char CLOUD_PATH_DIV = '/';
 static const char CLOUD_PATH_HOME = '~';
 static const char CLOUD_PATH_NODE = '#';
+static const char LOGIN_DIV = '@';
 
 static const uint64_t INIT_BODY_MAX_SIZE = 1024 * 8; // 8 KiB
 static const uint16_t INIT_CMD_AUTH = 1;

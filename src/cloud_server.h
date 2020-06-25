@@ -8,7 +8,7 @@
 #include "networking.h"
 #include "cloud_common.h"
 
-class CloudConfig final {
+class CloudConfig {
 public:
     std::string users_directory;
     std::string nodes_head_directory;

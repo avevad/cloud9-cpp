@@ -6,7 +6,7 @@
 #include <iostream>
 #include "networking_tcp.h"
 
-TCPConnection::TCPConnection(const char *host, int port) {
+TCPConnection::TCPConnection(const char *host, uint16_t port) {
     addrinfo *server_info, hints;
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_INET;

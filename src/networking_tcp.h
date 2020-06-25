@@ -18,7 +18,7 @@ private:
 public:
     TCPConnection() = delete;
 
-    TCPConnection(const char *host, int port);
+    TCPConnection(const char *host, uint16_t port);
 
     size_t send(size_t n, const void *buffer) override;
 

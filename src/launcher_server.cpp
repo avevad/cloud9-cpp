@@ -11,22 +11,32 @@
 #include "networking_tcp.h"
 #include "cloud_server.h"
 
-void load_config(const char *, CloudConfig &);
+struct LauncherConfig : public CloudConfig {
+    uint16_t server_port = CLOUD_DEFAULT_PORT;
+};
+
+void load_config(const char *, LauncherConfig &);
 
 int main(int argc, const char **argv) {
     signal(SIGPIPE, [](int) {});
-    if (argc != 3) {
+    if (argc != 2) {
         std::cerr << "invalid number of arguments" << std::endl;
         return 1;
     }
-    CloudConfig config;
+    LauncherConfig config;
     try {
         load_config(argv[1], config);
     } catch (std::exception &exception) {
         std::cerr << "failed to load configuration file: " << exception.what() << std::endl;
         return 1;
     }
-    NetServer *net = new TCPServer(atoi(argv[2]));
+    NetServer *net;
+    try {
+        net = new TCPServer(config.server_port);
+    } catch (std::exception &exception) {
+        std::cerr << "failed to start server: " << exception.what() << std::endl;
+        return 1;
+    }
     auto *server = new CloudServer(net, config);
     std::string s;
     std::getline(std::cin, s);
@@ -38,6 +48,7 @@ static const char *CONFIG_CHUNK_NAME = "config";
 static const char *CONFIG_OPTION_USERS_DIRECTORY = "users_directory";
 static const char *CONFIG_OPTION_NODES_HEAD_DIRECTORY = "nodes_head_directory";
 static const char *CONFIG_OPTION_NODES_DATA_DIRECTORY = "nodes_data_directory";
+static const char *CONFIG_OPTION_SERVER_PORT = "server_port";
 
 struct ConfigLoaderData {
     std::istream *stream;
@@ -46,7 +57,7 @@ struct ConfigLoaderData {
     explicit ConfigLoaderData(std::istream *stream) : stream(stream), prev(nullptr) {}
 };
 
-void load_config(const char *config_file, CloudConfig &config) {
+void load_config(const char *config_file, LauncherConfig &config) {
     if (!std::filesystem::is_regular_file(config_file)) throw std::invalid_argument("nonexistent config file");
     std::ifstream config_file_stream(config_file);
     std::string config_string((std::istreambuf_iterator<char>(config_file_stream)), std::istreambuf_iterator<char>());
@@ -108,6 +119,12 @@ void load_config(const char *config_file, CloudConfig &config) {
     lua_gettable(state, config_table);
     if (!lua_isstring(state, lua_gettop(state))) NO_OPTION(CONFIG_OPTION_NODES_DATA_DIRECTORY);
     config.nodes_data_directory = lua_tostring(state, lua_gettop(state));
+    lua_pop(state, 1);
+
+    lua_pushstring(state, CONFIG_OPTION_SERVER_PORT);
+    lua_gettable(state, config_table);
+    if (lua_isnumber(state, lua_gettop(state)))
+        config.server_port = lua_tonumber(state, lua_gettop(state));
     lua_pop(state, 1);
 
 #undef NO_OPTION
