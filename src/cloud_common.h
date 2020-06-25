@@ -157,7 +157,7 @@ static std::string request_status_string(uint16_t status) {
     else if (status == REQUEST_ERR_MALFORMED_CMD) return "malformed request";
     else if (status == REQUEST_ERR_NOT_FOUND) return "not found";
     else if (status == REQUEST_ERR_NOT_A_DIRECTORY) return "not a directory";
-    else if (status == REQUEST_ERR_FORBIDDEN) return "forbidden";
+    else if (status == REQUEST_ERR_FORBIDDEN) return "access denied";
     else return "unknown request error (" + std::to_string(status) + ")";
 }
 

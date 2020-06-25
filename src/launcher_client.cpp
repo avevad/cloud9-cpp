@@ -127,7 +127,7 @@ int shell(CloudClient *client, NetConnection *connection, const std::string &log
         std::cout << login << "@" << host << "$ ";
         if (!std::getline(std::cin, command)) {
             std::cout << std::endl;
-            std::cout << "Logout." << std::endl;
+            std::cout << "logout, connection closed" << std::endl;
             break;
         }
         command_store.clear();
@@ -148,7 +148,7 @@ int shell(CloudClient *client, NetConnection *connection, const std::string &log
             }
         } else std::cerr << "failed to parse command: " << error << std::endl;
         if (!connection->is_valid()) {
-            std::cerr << "Connection lost, exiting..." << std::endl;
+            std::cerr << "connection closed" << std::endl;
             fail = true;
             break;
         }
@@ -174,6 +174,7 @@ int main(int argc, const char **argv) {
     }
     if (args.empty() || args[0].empty()) {
         std::cerr << "no target specified" << std::endl;
+        return 1;
     }
     std::string login;
     std::string host;
