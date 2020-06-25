@@ -121,6 +121,7 @@ static const uint16_t REQUEST_ERR_INVALID_CMD = 2;
 static const uint16_t REQUEST_ERR_MALFORMED_CMD = 3;
 static const uint16_t REQUEST_ERR_NOT_FOUND = 4;
 static const uint16_t REQUEST_ERR_NOT_A_DIRECTORY = 5;
+static const uint16_t REQUEST_ERR_FORBIDDEN = 6;
 
 static const uint64_t USER_PASSWORD_SALT_LENGTH = 32;
 
@@ -128,6 +129,11 @@ static const uint64_t NODE_HEAD_OFFSET_TYPE = 0;
 static const uint64_t NODE_HEAD_OFFSET_RIGHTS = 1;
 static const uint64_t NODE_HEAD_OFFSET_OWNER_GROUP_SIZE = 2;
 static const uint64_t NODE_HEAD_OFFSET_OWNER_GROUP = 3;
+
+static const uint8_t NODE_RIGHTS_GROUP_READ = 0b1000;
+static const uint8_t NODE_RIGHTS_GROUP_WRITE = 0b0100;
+static const uint8_t NODE_RIGHTS_ALL_READ = 0b0010;
+static const uint8_t NODE_RIGHTS_ALL_WRITE = 0b0001;
 
 static const uint8_t NODE_TYPE_FILE = 0;
 static const uint8_t NODE_TYPE_DIRECTORY = 1;
@@ -148,6 +154,7 @@ static std::string request_status_string(uint16_t status) {
     else if (status == REQUEST_ERR_MALFORMED_CMD) return "malformed request";
     else if (status == REQUEST_ERR_NOT_FOUND) return "not found";
     else if (status == REQUEST_ERR_NOT_A_DIRECTORY) return "not a directory";
+    else if (status == REQUEST_ERR_FORBIDDEN) return "forbidden";
     else return "unknown request error (" + std::to_string(status) + ")";
 }
 
@@ -156,6 +163,10 @@ static std::string request_status_string(uint16_t status) {
 typedef struct {
     uint8_t id[NODE_ID_LENGTH];
 } Node;
+
+static bool operator==(const Node &a, const Node &b) {
+    return std::memcmp(&a, &b, sizeof(Node)) == 0;
+}
 
 static std::string node2string(Node node) {
     std::string s(NODE_ID_LENGTH * 2, 0);

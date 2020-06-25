@@ -129,6 +129,12 @@ void CloudServer::listener_routine(Session *session) {
                 }
                 int type = *(node_head + NODE_HEAD_OFFSET_TYPE);
                 delete[] node_head;
+                ReadWrite rights = get_user_rights(node, session->login);
+                if (!rights.read) {
+                    send_uint16(session->connection, REQUEST_ERR_FORBIDDEN);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
                 if (type != NODE_TYPE_DIRECTORY) {
                     send_uint16(session->connection, REQUEST_ERR_NOT_A_DIRECTORY);
                     send_uint64(session->connection, 0);
@@ -152,29 +158,23 @@ void CloudServer::listener_routine(Session *session) {
                     continue;
                 }
                 Node node = *(Node *) body;
-                auto[node_head, node_size] = get_node_head(node);
-                if (!node_head) {
-                    send_uint16(session->connection, REQUEST_ERR_NOT_FOUND);
-                    send_uint64(session->connection, 0);
-                    continue;
+                uint16_t error = REQUEST_OK;
+                Node parent;
+                bool ok = get_parent(node, parent, error);
+                if (error != REQUEST_ERR_NOT_FOUND) {
+                    ReadWrite rights = get_user_rights(node, session->login);
+                    if (!rights.read) {
+                        send_uint16(session->connection, REQUEST_ERR_FORBIDDEN);
+                        send_uint64(session->connection, 0);
+                        continue;
+                    }
                 }
-                auto owner_size = (size_t) *(unsigned char *) (node_head + NODE_HEAD_OFFSET_OWNER_GROUP_SIZE);
-                Node *parent = reinterpret_cast<Node *>(node_head + NODE_HEAD_OFFSET_OWNER_GROUP + owner_size);
-                Node result;
-                bool ok;
-                if (parent >= reinterpret_cast<Node *>(node_head + node_size)) {
-                    ok = false;
-                } else {
-                    result = *parent;
-                    ok = true;
-                }
-                delete node_head;
                 if (ok) {
                     send_uint16(session->connection, REQUEST_OK);
                     send_uint64(session->connection, sizeof(Node));
-                    send_exact(session->connection, sizeof(Node), &result);
+                    send_exact(session->connection, sizeof(Node), &parent);
                 } else {
-                    send_uint16(session->connection, REQUEST_OK);
+                    send_uint16(session->connection, error);
                     send_uint64(session->connection, 0);
                 }
             } else {
@@ -210,6 +210,59 @@ std::pair<char *, size_t> CloudServer::get_node_head(Node node) {
 
 std::string CloudServer::get_node_data_path(Node node) {
     return config.nodes_data_directory + PATH_DIV + node2string(node);
+}
+
+ReadWrite CloudServer::get_user_rights(Node node, const std::string &user) {
+    ReadWrite user_rights;
+    auto[node_head, head_size] = get_node_head(node);
+    uint8_t rights = *reinterpret_cast<const uint8_t *>(node_head + NODE_HEAD_OFFSET_RIGHTS);
+    Node home = node;
+    uint16_t error;
+    while (get_parent(home, home, error));
+    std::string owner;
+    get_home_owner(home, error, owner);
+    if (owner == user) user_rights.read = user_rights.write = true;
+    //TODO: add group rights
+    if (rights & NODE_RIGHTS_ALL_READ) user_rights.read = true;
+    if (rights & NODE_RIGHTS_ALL_WRITE) user_rights.write = true;
+    return user_rights;
+}
+
+bool CloudServer::get_parent(Node node, Node &parent, uint16_t &error) {
+    auto[node_head, node_size] = get_node_head(node);
+    if (!node_head) {
+        error = REQUEST_ERR_NOT_FOUND;
+        return false;
+    }
+    auto owner_size = (size_t) *(unsigned char *) (node_head + NODE_HEAD_OFFSET_OWNER_GROUP_SIZE);
+    Node *parent_ptr = reinterpret_cast<Node *>(node_head + NODE_HEAD_OFFSET_OWNER_GROUP + owner_size);
+    Node result;
+    bool ok;
+    if (parent_ptr >= reinterpret_cast<Node *>(node_head + node_size)) {
+        ok = false;
+    } else {
+        result = *parent_ptr;
+        ok = true;
+    }
+    if (ok) parent = *parent_ptr;
+    delete node_head;
+    return ok;
+}
+
+bool CloudServer::get_home_owner(Node node, uint16_t &error, std::string &owner) {
+    bool found = false;
+    for (const auto &entry : std::filesystem::directory_iterator(config.users_directory)) {
+        std::ifstream user_file(entry.path());
+        std::string user_string((std::istreambuf_iterator<char>(user_file)),
+                                std::istreambuf_iterator<char>());
+        Node *home = (Node *) (user_string.c_str() + USER_PASSWORD_SALT_LENGTH + SHA256_DIGEST_LENGTH);
+        if (*home == node) {
+            found = true;
+            owner = entry.path().filename();
+            break;
+        }
+    }
+    return found;
 }
 
 CloudServer::Session::Session(NetConnection *connection) : connection(connection) {

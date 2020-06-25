@@ -19,6 +19,10 @@ public:
     ~CloudConfig();
 };
 
+typedef struct {
+    bool read = false, write = false;
+} ReadWrite;
+
 class CloudServer final {
 private:
     class Session {
@@ -28,6 +32,7 @@ private:
 
         explicit Session(NetConnection *connection);
     };
+
 private:
     const CloudConfig config;
     NetServer *const net;
@@ -42,9 +47,16 @@ private:
 
     std::pair<char *, size_t> get_node_head(Node node);
 
+    ReadWrite get_user_rights(Node node, const std::string &user);
+
     std::string get_node_data_path(Node node);
+
+    bool get_parent(Node node, Node &parent, uint16_t &error);
+
+    bool get_home_owner(Node node, uint16_t &error, std::string &owner);
+
 public:
-    CloudServer(NetServer *net, const CloudConfig& config);
+    CloudServer(NetServer *net, const CloudConfig &config);
 
     void wait_destroy();
 
