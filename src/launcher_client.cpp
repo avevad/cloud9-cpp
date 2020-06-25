@@ -183,6 +183,8 @@ int main(int argc, const char **argv) {
                             commands[command_name](client, cwd, command_store);
                         } catch (std::runtime_error &error) {
                             std::cerr << "error: " << error.what() << std::endl;
+                        } catch (Cloud9RequestError &error) {
+                            std::cerr << "request failed: " << error.what() << std::endl;
                         }
                     } else std::cerr << "no such command: " << command_name << std::endl;
                 }

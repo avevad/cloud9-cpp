@@ -26,4 +26,27 @@ public:
     void get_parent(Node node, Node *parent, bool *has_parent);
 };
 
+class Cloud9InitError : public std::exception {
+public:
+    const uint16_t status;
+    const std::string desc;
+
+    explicit Cloud9InitError(uint16_t status);
+
+public:
+    const char *what() const noexcept override;
+};
+
+class Cloud9RequestError : public std::exception {
+public:
+    const uint16_t status;
+    const std::string info;
+    const std::string desc;
+
+    explicit Cloud9RequestError(uint16_t status, std::string info = "");
+
+public:
+    const char *what() const noexcept override;
+};
+
 #endif //CLOUD9_CLOUD_CLIENT_H

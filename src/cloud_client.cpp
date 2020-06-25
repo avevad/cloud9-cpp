@@ -14,7 +14,7 @@ CloudClient::CloudClient(NetConnection *net, const std::string &login, std::stri
     send_exact(net, password.size(), password.c_str());
     uint16_t status = read_uint16(net);
     if (status != INIT_OK) {
-        throw std::runtime_error(init_status_string(status));
+        throw Cloud9InitError(status);
     }
 }
 
@@ -37,7 +37,7 @@ Node CloudClient::get_home(const std::string &user) {
     read_exact(connection, size, buffer);
     if (status != REQUEST_OK) {
         delete[] buffer;
-        throw std::runtime_error(request_status_string(status));
+        throw Cloud9RequestError(status);
     }
     if (size != sizeof(Node)) {
         delete[] buffer;
@@ -63,7 +63,7 @@ void CloudClient::list_directory(Node node, const std::function<void(std::string
     read_exact(connection, size, buffer);
     if (status != REQUEST_OK) {
         delete[] buffer;
-        throw std::runtime_error(request_status_string(status));
+        throw Cloud9RequestError(status);
     }
     size_t offset = 0;
     while (offset < size) {
@@ -89,10 +89,28 @@ void CloudClient::get_parent(Node node, Node *parent, bool *has_parent) {
     read_exact(connection, size, buffer);
     if (status != REQUEST_OK) {
         delete[] buffer;
-        throw std::runtime_error(request_status_string(status));
+        throw Cloud9RequestError(status);
     }
     bool result = size == sizeof(Node);
     if (has_parent) *has_parent = result;
     if (result && parent) *parent = *reinterpret_cast<Node *>(buffer);
     delete[] buffer;
+}
+
+Cloud9RequestError::Cloud9RequestError(uint16_t status, std::string info) : desc(
+        info.empty() ? request_status_string(status) : (request_status_string(status) + " (" + info + ")")),
+                                                                            status(status), info(std::move(info)) {
+
+}
+
+const char *Cloud9RequestError::what() const noexcept {
+    return desc.c_str();
+}
+
+Cloud9InitError::Cloud9InitError(uint16_t status) : status(status), desc(init_status_string(status)) {
+
+}
+
+const char *Cloud9InitError::what() const noexcept {
+    return desc.c_str();
 }
