@@ -43,7 +43,7 @@ Node CloudClient::get_home(const std::string &user) {
         delete[] buffer;
         throw std::runtime_error("server error");
     }
-    Node node = *(Node *) buffer;
+    Node node = *reinterpret_cast<Node *>(buffer);
     delete[] buffer;
     return node;
 }
@@ -67,11 +67,11 @@ void CloudClient::list_directory(Node node, const std::function<void(std::string
     }
     size_t offset = 0;
     while (offset < size) {
-        Node child = *(Node *) (buffer + offset);
+        Node child = *reinterpret_cast<Node *>(buffer + offset);
         offset += sizeof(Node);
-        auto length = (size_t) *(unsigned char *) (buffer + offset);
+        auto length = (size_t) * reinterpret_cast<unsigned char *>(buffer + offset);
         offset += 1;
-        std::string name((const char *) (buffer + offset), length);
+        std::string name(reinterpret_cast<const char *>(buffer + offset), length);
         offset += length;
         callback(name, child);
     }

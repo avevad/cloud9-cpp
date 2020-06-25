@@ -56,7 +56,7 @@ void CloudServer::listener_routine(Session *session) {
         read_exact(session->connection, size, body);
         if (cmd == INIT_CMD_AUTH) {
             if (size == 0) INIT_ERR(INIT_ERR_MALFORMED_CMD);
-            uint8_t login_length = *(uint8_t *) body;
+            uint8_t login_length = *reinterpret_cast<uint8_t *>(body);
             if (login_length > size - sizeof(uint8_t)) INIT_ERR(INIT_ERR_MALFORMED_CMD);
             session->login = std::string(body + sizeof(uint8_t), login_length);
             std::string password(body + sizeof(uint8_t) + login_length, body + size);
@@ -68,7 +68,8 @@ void CloudServer::listener_routine(Session *session) {
             std::string salt = user_string.substr(0, USER_PASSWORD_SALT_LENGTH);
             std::string password_salted = password + salt;
             char *sha256 = new char[SHA256_DIGEST_LENGTH + 1];
-            SHA256((unsigned char *) password_salted.c_str(), password_salted.length(), (unsigned char *) sha256);
+            SHA256(reinterpret_cast<const unsigned char *>(password_salted.c_str()), password_salted.length(),
+                   reinterpret_cast<unsigned char *>(sha256));
             sha256[SHA256_DIGEST_LENGTH] = '\0';
             std::string sha256_real = user_string.substr(USER_PASSWORD_SALT_LENGTH, SHA256_DIGEST_LENGTH);
             bool ok = strcmp(sha256, sha256_real.c_str()) == 0;
@@ -109,7 +110,8 @@ void CloudServer::listener_routine(Session *session) {
                     std::ifstream user_file(user_file_path);
                     std::string user_string((std::istreambuf_iterator<char>(user_file)),
                                             std::istreambuf_iterator<char>());
-                    Node *node = (Node *) (user_string.c_str() + USER_PASSWORD_SALT_LENGTH + SHA256_DIGEST_LENGTH);
+                    const Node *node = reinterpret_cast<const Node *>(user_string.c_str() + USER_PASSWORD_SALT_LENGTH +
+                                                                      SHA256_DIGEST_LENGTH);
                     send_uint16(session->connection, REQUEST_OK);
                     send_uint64(session->connection, sizeof(Node));
                     send_exact(session->connection, sizeof(Node), node);
@@ -120,7 +122,7 @@ void CloudServer::listener_routine(Session *session) {
                     send_uint64(session->connection, 0);
                     continue;
                 }
-                Node node = *(Node *) body;
+                Node node = *reinterpret_cast<Node *>(body);
                 auto[node_head, head_size] = get_node_head(node);
                 if (!node_head) {
                     send_uint16(session->connection, REQUEST_ERR_NOT_FOUND);
@@ -157,7 +159,7 @@ void CloudServer::listener_routine(Session *session) {
                     send_uint64(session->connection, 0);
                     continue;
                 }
-                Node node = *(Node *) body;
+                Node node = *reinterpret_cast<Node *>(body);
                 uint16_t error = REQUEST_OK;
                 Node parent;
                 bool ok = get_parent(node, parent, error);
@@ -234,7 +236,7 @@ bool CloudServer::get_parent(Node node, Node &parent, uint16_t &error) {
         error = REQUEST_ERR_NOT_FOUND;
         return false;
     }
-    auto owner_size = (size_t) *(unsigned char *) (node_head + NODE_HEAD_OFFSET_OWNER_GROUP_SIZE);
+    auto owner_size = (size_t) *reinterpret_cast<unsigned char *>(node_head + NODE_HEAD_OFFSET_OWNER_GROUP_SIZE);
     Node *parent_ptr = reinterpret_cast<Node *>(node_head + NODE_HEAD_OFFSET_OWNER_GROUP + owner_size);
     Node result;
     bool ok;
@@ -255,7 +257,8 @@ bool CloudServer::get_home_owner(Node node, uint16_t &error, std::string &owner)
         std::ifstream user_file(entry.path());
         std::string user_string((std::istreambuf_iterator<char>(user_file)),
                                 std::istreambuf_iterator<char>());
-        Node *home = (Node *) (user_string.c_str() + USER_PASSWORD_SALT_LENGTH + SHA256_DIGEST_LENGTH);
+        const Node *home = reinterpret_cast<const Node *>(user_string.c_str() + USER_PASSWORD_SALT_LENGTH +
+                                                          SHA256_DIGEST_LENGTH);
         if (*home == node) {
             found = true;
             owner = entry.path().filename();

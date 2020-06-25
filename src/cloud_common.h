@@ -8,12 +8,12 @@
 
 static void read_exact(NetConnection *connection, uint64_t size, void *buffer) {
     uint64_t read = 0;
-    while (read < size) read += connection->read(size - read, (char *) buffer + read);
+    while (read < size) read += connection->read(size - read, reinterpret_cast<char *>(buffer) + read);
 }
 
 static void send_exact(NetConnection *connection, uint64_t size, const void *buffer) {
     uint64_t sent = 0;
-    while (sent < size) sent += connection->send(size - sent, (const char *) buffer + sent);
+    while (sent < size) sent += connection->send(size - sent, reinterpret_cast<const char *>(buffer) + sent);
 }
 
 static void send_uint8(NetConnection *connection, uint8_t n) {
