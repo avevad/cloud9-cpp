@@ -17,8 +17,21 @@ struct LauncherConfig : public CloudConfig {
 
 void load_config(const char *, LauncherConfig &);
 
+CloudServer *server = nullptr;
+
+void server_shutdown() {
+    delete server;
+    if (!server) std::cout << "warning: server wasn't started" << std::endl;
+}
+
 int main(int argc, const char **argv) {
     signal(SIGPIPE, [](int) {});
+    signal(SIGTERM, [](int) {
+        std::cout << "received SIGTERM, stopping server..." << std::endl;
+        server_shutdown();
+        std::cout << "server stopped, exiting normally..." << std::endl;
+        exit(0);
+    });
     if (argc != 2) {
         std::cerr << "invalid number of arguments" << std::endl;
         return 1;
@@ -37,10 +50,9 @@ int main(int argc, const char **argv) {
         std::cerr << "failed to start server: " << exception.what() << std::endl;
         return 1;
     }
-    auto *server = new CloudServer(net, config);
-    std::string s;
-    std::getline(std::cin, s);
-    delete server;
+    server = new CloudServer(net, config);
+    server->wait_destroy();
+    return 0;
 }
 
 static const size_t CONFIG_LOADER_BUFFER_SIZE = 4096;
