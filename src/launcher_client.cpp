@@ -90,9 +90,7 @@ Node get_path_node(CloudClient *client, Node cwd, const std::string &path) {
     } else return get_relative_path_node(client, cwd, path);
 }
 
-static const std::string OPTION_LONG_PORT = "port=";
-
-int main(int argc, const char **argv) {
+int shell(CloudClient *client, NetConnection *connection, const std::string &login, const std::string &host) {
     const std::map<std::string, void (*)(CloudClient *, Node &, std::vector<std::string> &)> commands{
             {"ls",  [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
                 if (args.size() > 1) {
@@ -121,7 +119,46 @@ int main(int argc, const char **argv) {
                 }
             }}
     };
+    Node cwd = client->get_home(login);
+    std::string command;
+    std::vector<std::string> command_store;
+    bool fail = false;
+    while (true) {
+        std::cout << login << "@" << host << "$ ";
+        if (!std::getline(std::cin, command)) {
+            std::cout << std::endl;
+            std::cout << "Logout." << std::endl;
+            break;
+        }
+        command_store.clear();
+        std::string error = parse_command(command, command_store);
+        if (error.empty()) {
+            if (!command_store.empty()) {
+                std::string command_name = command_store.front();
+                command_store.erase(command_store.begin());
+                if (commands.find(command_name) != commands.end()) {
+                    try {
+                        commands.at(command_name)(client, cwd, command_store);
+                    } catch (std::runtime_error &error) {
+                        std::cerr << "error: " << error.what() << std::endl;
+                    } catch (CloudRequestError &error) {
+                        std::cerr << "request failed: " << error.what() << std::endl;
+                    }
+                } else std::cerr << "no such command: " << command_name << std::endl;
+            }
+        } else std::cerr << "failed to parse command: " << error << std::endl;
+        if (!connection->is_valid()) {
+            std::cerr << "Connection lost, exiting..." << std::endl;
+            fail = true;
+            break;
+        }
+    }
+    return fail;
+}
 
+static const std::string OPTION_LONG_PORT = "port=";
+
+int main(int argc, const char **argv) {
     signal(SIGPIPE, [](int) {});
     std::vector<std::string> args, options_long;
     std::string options_short;
@@ -184,59 +221,32 @@ int main(int argc, const char **argv) {
         return 1;
     }
     std::string prompt = login + "@" + host + "'s password: ";
-    CloudClient *client = nullptr;
-    try {
-        client = new CloudClient(connection, login, [](void *ud) -> std::string {
-            const char *prompt = static_cast<const char *>(ud);
-            std::cout << prompt;
-            std::cout << "\x1B[37m\x1B[47m\x1B[8m";
-            std::string password;
-            std::getline(std::cin, password);
-            std::cout << "\x1B[0m";
-            return password;
-        }, (void *) prompt.c_str());
-    } catch (std::exception &exception) {
-        std::cerr << "authentication failed: " << exception.what() << std::endl;
-        connection->close();
-        delete connection;
-        return 1;
-    }
-    Node cwd = client->get_home(login);
-    std::string command;
-    std::vector<std::string> command_store;
-    bool fail = false;
-    while (true) {
-        std::cout << login << "@" << host << "$ ";
-        if (!std::getline(std::cin, command)) {
-            std::cout << std::endl;
-            std::cout << "Logout." << std::endl;
-            break;
+    int result;
+    if (login.empty()) {
+        std::cerr << "not implemented yet" << std::endl; // TODO: implement user registering
+        result = 1;
+    } else {
+        CloudClient *client = nullptr;
+        try {
+            client = new CloudClient(connection, login, [](void *ud) -> std::string {
+                const char *prompt = static_cast<const char *>(ud);
+                std::cout << prompt;
+                std::cout << "\x1B[37m\x1B[47m\x1B[8m";
+                std::string password;
+                std::getline(std::cin, password);
+                std::cout << "\x1B[0m";
+                return password;
+            }, (void *) prompt.c_str());
+        } catch (std::exception &exception) {
+            std::cerr << "authentication failed: " << exception.what() << std::endl;
+            connection->close();
+            delete connection;
+            return 1;
         }
-        command_store.clear();
-        std::string error = parse_command(command, command_store);
-        if (error.empty()) {
-            if (!command_store.empty()) {
-                std::string command_name = command_store.front();
-                command_store.erase(command_store.begin());
-                if (commands.find(command_name) != commands.end()) {
-                    try {
-                        commands.at(command_name)(client, cwd, command_store);
-                    } catch (std::runtime_error &error) {
-                        std::cerr << "error: " << error.what() << std::endl;
-                    } catch (Cloud9RequestError &error) {
-                        std::cerr << "request failed: " << error.what() << std::endl;
-                    }
-                } else std::cerr << "no such command: " << command_name << std::endl;
-            }
-        } else std::cerr << "failed to parse command: " << error << std::endl;
-        if (!connection->is_valid()) {
-            std::cerr << "Connection lost, exiting..." << std::endl;
-            fail = true;
-            break;
-        }
+        result = shell(client, connection, login, host);
+        delete client;
     }
-    delete client;
     connection->close();
     delete connection;
-    if (fail) return 1;
+    return result;
 }
