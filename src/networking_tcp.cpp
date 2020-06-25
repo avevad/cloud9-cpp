@@ -31,9 +31,9 @@ TCPConnection::TCPConnection(const char *host, int port) {
 }
 
 size_t TCPConnection::send(size_t n, const void *buffer) {
-    if(!is_valid()) throw std::runtime_error("connection is closed");
+    if (!is_valid()) throw std::runtime_error("connection is closed");
     ssize_t sent = ::send(sock, buffer, n, 0);
-    if(sent == -1) {
+    if (sent == -1) {
         close();
         throw std::runtime_error(strerror(errno));
     }
@@ -41,13 +41,13 @@ size_t TCPConnection::send(size_t n, const void *buffer) {
 }
 
 size_t TCPConnection::read(size_t n, void *buffer) {
-    if(!is_valid()) throw std::runtime_error("connection is closed");
+    if (!is_valid()) throw std::runtime_error("connection is closed");
     ssize_t read = ::recv(sock, buffer, n, 0);
-    if(read == -1) {
+    if (read == -1) {
         close();
         throw std::runtime_error(strerror(errno));
     }
-    if(read == 0) {
+    if (read == 0) {
         close();
         throw std::runtime_error("connection reset by peer");
     }
@@ -55,7 +55,7 @@ size_t TCPConnection::read(size_t n, void *buffer) {
 }
 
 void TCPConnection::close() {
-    if(sock == -1) return;
+    if (sock == -1) return;
     shutdown(sock, SHUT_RDWR);
     ::close(sock);
     sock = -1;
@@ -66,7 +66,7 @@ bool TCPConnection::is_valid() {
 }
 
 TCPConnection::~TCPConnection() {
-    if(is_valid()) {
+    if (is_valid()) {
         std::cout << "networking_tcp: warning: destructing valid connection" << std::endl;
         close();
     }
@@ -95,14 +95,14 @@ TCPServer::TCPServer(int port) {
 }
 
 TCPConnection *TCPServer::accept() {
-    if(!is_valid()) throw std::runtime_error("server is destroyed");
+    if (!is_valid()) throw std::runtime_error("server is destroyed");
     int client = ::accept(sock, nullptr, nullptr);
-    if(client == -1) throw std::runtime_error(strerror(errno));
+    if (client == -1) throw std::runtime_error(strerror(errno));
     return new TCPConnection(client);
 }
 
 void TCPServer::destroy() {
-    if(sock == -1) return;
+    if (sock == -1) return;
     shutdown(sock, SHUT_RDWR);
     ::close(sock);
     sock = -1;
@@ -113,7 +113,7 @@ bool TCPServer::is_valid() {
 }
 
 TCPServer::~TCPServer() {
-    if(is_valid()) {
+    if (is_valid()) {
         std::cout << "networking_tcp: warning: destructing valid server" << std::endl;
         destroy();
     }
