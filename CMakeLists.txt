@@ -19,3 +19,6 @@ add_executable(cloud9d ${SRC_DIR}/launcher_server.cpp ${SRC_DIR}/cloud_server.cp
 
 target_link_libraries(cloud9 ${OPENSSL_LIBRARIES} cloud9_common)
 target_link_libraries(cloud9d ${OPENSSL_LIBRARIES} ${LUA_LIBRARY} cloud9_common)
+
+install(TARGETS cloud9 DESTINATION bin)
+install(TARGETS cloud9d DESTINATION sbin)
