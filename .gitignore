@@ -1,3 +1,5 @@
-cmake-build-debug
-cmake-build-release
+cmake-build-debug/*
+!cmake-build-debug/README.md
+cmake-build-release/*
+!cmake-build-release/README.md
 .idea

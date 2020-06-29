@@ -12,8 +12,10 @@ include_directories(${OPENSSL_INCLUDE_DIR})
 find_package(Lua REQUIRED)
 include_directories(${LUA_INCLUDE_DIR})
 
-add_executable(cloud9 ${SRC_DIR}/launcher_client.cpp ${SRC_DIR}/networking_ssl.cpp ${SRC_DIR}/networking_tcp.cpp ${SRC_DIR}/cloud_client.cpp)
-add_executable(cloud9d ${SRC_DIR}/launcher_server.cpp ${SRC_DIR}/networking_ssl.cpp ${SRC_DIR}/networking_tcp.cpp ${SRC_DIR}/cloud_server.cpp)
+add_library(cloud9_common ${SRC_DIR}/networking_ssl.cpp ${SRC_DIR}/networking_tcp.cpp)
 
-target_link_libraries(cloud9 ${OPENSSL_LIBRARIES})
-target_link_libraries(cloud9d ${OPENSSL_LIBRARIES} ${LUA_LIBRARY})
+add_executable(cloud9 ${SRC_DIR}/launcher_client.cpp ${SRC_DIR}/cloud_client.cpp)
+add_executable(cloud9d ${SRC_DIR}/launcher_server.cpp ${SRC_DIR}/cloud_server.cpp)
+
+target_link_libraries(cloud9 ${OPENSSL_LIBRARIES} cloud9_common)
+target_link_libraries(cloud9d ${OPENSSL_LIBRARIES} ${LUA_LIBRARY} cloud9_common)
