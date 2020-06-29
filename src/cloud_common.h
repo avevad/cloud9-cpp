@@ -97,12 +97,24 @@ static bool is_valid_login(const std::string &login) {
     return true;
 }
 
-static const uint16_t CLOUD_DEFAULT_PORT = 909;
-
-static const char PATH_DIV = '/';
 static const char CLOUD_PATH_DIV = '/';
 static const char CLOUD_PATH_HOME = '~';
 static const char CLOUD_PATH_NODE = '#';
+static const char CLOUD_PATH_UNKNOWN = '?';
+
+static bool is_valid_name(const std::string &name) {
+    if (name.length() <= 0 || name.length() > 0xFF) return false;
+    if (name[0] == '.') return false;
+    for (char c : name) {
+        if (c == CLOUD_PATH_DIV || c == CLOUD_PATH_HOME || c == CLOUD_PATH_NODE || c == CLOUD_PATH_UNKNOWN)
+            return false;
+    }
+    return true;
+}
+
+static const uint16_t CLOUD_DEFAULT_PORT = 909;
+
+static const char PATH_DIV = '/';
 static const char LOGIN_DIV = '@';
 
 static const uint64_t INIT_BODY_MAX_SIZE = 1024 * 8; // 8 KiB
@@ -118,6 +130,7 @@ static const uint16_t REQUEST_CMD_GET_HOME = 1;
 static const uint16_t REQUEST_CMD_LIST_DIRECTORY = 2;
 static const uint16_t REQUEST_CMD_GOODBYE = 3;
 static const uint16_t REQUEST_CMD_GET_PARENT = 4;
+static const uint16_t REQUEST_CMD_MAKE_NODE = 5;
 static const uint16_t REQUEST_OK = 0;
 static const uint16_t REQUEST_ERR_BODY_TOO_LARGE = 1;
 static const uint16_t REQUEST_ERR_INVALID_CMD = 2;
@@ -125,6 +138,8 @@ static const uint16_t REQUEST_ERR_MALFORMED_CMD = 3;
 static const uint16_t REQUEST_ERR_NOT_FOUND = 4;
 static const uint16_t REQUEST_ERR_NOT_A_DIRECTORY = 5;
 static const uint16_t REQUEST_ERR_FORBIDDEN = 6;
+static const uint16_t REQUEST_ERR_INVALID_NAME = 7;
+static const uint16_t REQUEST_ERR_INVALID_TYPE = 8;
 
 static const uint64_t USER_PASSWORD_SALT_LENGTH = 32;
 
@@ -158,6 +173,8 @@ static std::string request_status_string(uint16_t status) {
     else if (status == REQUEST_ERR_NOT_FOUND) return "not found";
     else if (status == REQUEST_ERR_NOT_A_DIRECTORY) return "not a directory";
     else if (status == REQUEST_ERR_FORBIDDEN) return "access denied";
+    else if (status == REQUEST_ERR_INVALID_NAME) return "invalid name";
+    else if (status == REQUEST_ERR_INVALID_TYPE) return "invalid type";
     else return "unknown request error (" + std::to_string(status) + ")";
 }
 

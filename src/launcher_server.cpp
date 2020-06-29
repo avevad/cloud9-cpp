@@ -25,6 +25,7 @@ void server_shutdown() {
 }
 
 int main(int argc, const char **argv) {
+    std::srand(std::time(nullptr));
     signal(SIGPIPE, [](int) {});
     signal(SIGTERM, [](int) {
         std::cout << "received SIGTERM, stopping server..." << std::endl;

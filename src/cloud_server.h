@@ -47,13 +47,19 @@ private:
 
     std::pair<char *, size_t> get_node_head(Node node);
 
+    std::pair<char *, size_t> get_node_data(Node node); // use only for directories
+
     ReadWrite get_user_rights(Node node, const std::string &user);
 
     std::string get_node_data_path(Node node);
 
+    std::string get_node_head_path(Node node);
+
     bool get_parent(Node node, Node &parent, uint16_t &error);
 
     bool get_home_owner(Node node, uint16_t &error, std::string &owner);
+
+    Node generate_node();
 
 public:
     CloudServer(NetServer *net, const CloudConfig &config);
