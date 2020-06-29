@@ -33,6 +33,12 @@ int main(int argc, const char **argv) {
         std::cout << "server stopped, exiting normally..." << std::endl;
         exit(0);
     });
+    signal(SIGINT, [](int) {
+        std::cout << "received SIGINT, stopping server..." << std::endl;
+        server_shutdown();
+        std::cout << "server stopped, exiting normally..." << std::endl;
+        exit(0);
+    });
     if (argc != 2) {
         std::cerr << "invalid number of arguments" << std::endl;
         return 1;
