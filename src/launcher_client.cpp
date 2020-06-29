@@ -92,9 +92,9 @@ Node get_path_node(CloudClient *client, Node cwd, const std::string &path) {
 
 int shell(CloudClient *client, NetConnection *connection, const std::string &login, const std::string &host) {
     const std::map<std::string, void (*)(CloudClient *, Node &, std::vector<std::string> &)> commands{
-            {"ls",  [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
+            {"ls",    [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
                 if (args.size() > 1) {
-                    std::cerr << "too much arguments" << std::endl;
+                    std::cerr << "ls: too much arguments" << std::endl;
                     return;
                 }
                 std::string flags;
@@ -105,18 +105,32 @@ int shell(CloudClient *client, NetConnection *connection, const std::string &log
                     std::cout << name << std::endl;
                 });
             }},
-            {"cd",  [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
+            {"cd",    [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
                 if (args.empty()) {
                     cwd = client->get_home();
                 } else if (args.size() == 1) {
                     cwd = get_path_node(client, cwd, args[0]);
-                } else std::cerr << "too much arguments" << std::endl;
+                } else std::cerr << "cd: too much arguments" << std::endl;
             }},
-            {"pwd", [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
-                if (!args.empty()) std::cerr << "too much arguments" << std::endl;
+            {"pwd",   [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
+                if (!args.empty()) std::cerr << "pwd: too much arguments" << std::endl;
                 else {
                     std::cout << "#" << node2string(cwd) << std::endl;
                 }
+            }},
+            {"mkdir", [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
+                if (args.empty()) std::cerr << "mkdir: not enough arguments" << std::endl;
+                else if (args.size() == 1) {
+                    std::string path = args[0];
+                    auto iter = std::find(path.begin(), path.end(), CLOUD_PATH_DIV);
+                    Node parent = cwd;
+                    std::string name = path;
+                    if (iter != path.end()) {
+                        parent = get_path_node(client, cwd, path.substr(0, iter - path.begin()));
+                        name = path.substr(iter - name.begin() + 1);
+                    }
+                    client->make_node(parent, name, NODE_TYPE_DIRECTORY);
+                } else std::cerr << "mkdir: too much arguments" << std::endl;
             }}
     };
     Node cwd = client->get_home(login);
