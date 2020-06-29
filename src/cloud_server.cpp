@@ -204,14 +204,15 @@ void CloudServer::listener_routine(Session *session) {
                     continue;
                 }
                 Node parent = *reinterpret_cast<Node *>(body);
-                if (!get_user_rights(parent, session->login).write) {
-                    send_uint16(session->connection, REQUEST_ERR_FORBIDDEN);
-                    send_uint64(session->connection, 0);
-                    continue;
-                }
                 auto[parent_head, parent_head_size] = get_node_head(parent);
                 if (!parent_head) {
                     send_uint16(session->connection, REQUEST_ERR_NOT_FOUND);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                if (!get_user_rights(parent, session->login).write) {
+                    delete[] parent_head;
+                    send_uint16(session->connection, REQUEST_ERR_FORBIDDEN);
                     send_uint64(session->connection, 0);
                     continue;
                 }
@@ -244,6 +245,7 @@ void CloudServer::listener_routine(Session *session) {
                     header += std::string(reinterpret_cast<const char *>(&parent), sizeof(Node));
                     head_stream << header;
                 }
+                delete[] parent_head;
                 send_uint16(session->connection, REQUEST_OK);
                 send_uint64(session->connection, 0);
             } else {
@@ -304,6 +306,7 @@ ReadWrite CloudServer::get_user_rights(Node node, const std::string &user) {
     //TODO: add group rights
     if (rights & NODE_RIGHTS_ALL_READ) user_rights.read = true;
     if (rights & NODE_RIGHTS_ALL_WRITE) user_rights.write = true;
+    delete[] node_head;
     return user_rights;
 }
 
@@ -324,7 +327,7 @@ bool CloudServer::get_parent(Node node, Node &parent, uint16_t &error) {
         ok = true;
     }
     if (ok) parent = *parent_ptr;
-    delete node_head;
+    delete[] node_head;
     return ok;
 }
 

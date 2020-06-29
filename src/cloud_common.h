@@ -140,6 +140,7 @@ static const uint16_t REQUEST_ERR_NOT_A_DIRECTORY = 5;
 static const uint16_t REQUEST_ERR_FORBIDDEN = 6;
 static const uint16_t REQUEST_ERR_INVALID_NAME = 7;
 static const uint16_t REQUEST_ERR_INVALID_TYPE = 8;
+static const uint16_t REQUEST_ERR_EXISTS = 9;
 
 static const uint64_t USER_PASSWORD_SALT_LENGTH = 32;
 
@@ -175,6 +176,7 @@ static std::string request_status_string(uint16_t status) {
     else if (status == REQUEST_ERR_FORBIDDEN) return "access denied";
     else if (status == REQUEST_ERR_INVALID_NAME) return "invalid name";
     else if (status == REQUEST_ERR_INVALID_TYPE) return "invalid type";
+    else if (status == REQUEST_ERR_EXISTS) return "object exists";
     else return "unknown request error (" + std::to_string(status) + ")";
 }
 
