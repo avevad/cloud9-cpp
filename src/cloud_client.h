@@ -26,6 +26,8 @@ public:
     bool get_parent(Node node, Node *parent);
 
     void make_node(Node parent, const std::string &name, uint8_t type);
+
+    std::string get_node_owner(Node node);
 };
 
 class CloudInitError : public std::exception {

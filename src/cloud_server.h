@@ -61,6 +61,8 @@ private:
 
     Node generate_node();
 
+    std::string get_node_owner(Node node);
+
 public:
     CloudServer(NetServer *net, const CloudConfig &config);
 

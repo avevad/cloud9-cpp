@@ -131,6 +131,7 @@ static const uint16_t REQUEST_CMD_LIST_DIRECTORY = 2;
 static const uint16_t REQUEST_CMD_GOODBYE = 3;
 static const uint16_t REQUEST_CMD_GET_PARENT = 4;
 static const uint16_t REQUEST_CMD_MAKE_NODE = 5;
+static const uint16_t REQUEST_CMD_GET_NODE_OWNER = 6;
 static const uint16_t REQUEST_OK = 0;
 static const uint16_t REQUEST_ERR_BODY_TOO_LARGE = 1;
 static const uint16_t REQUEST_ERR_INVALID_CMD = 2;

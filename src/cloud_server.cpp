@@ -270,6 +270,24 @@ void CloudServer::listener_routine(Session *session) {
                 delete[] parent_head;
                 send_uint16(session->connection, REQUEST_OK);
                 send_uint64(session->connection, 0);
+            } else if (cmd == REQUEST_CMD_GET_NODE_OWNER) {
+                if (size != sizeof(Node)) {
+                    send_uint16(session->connection, REQUEST_ERR_MALFORMED_CMD);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                Node node = *reinterpret_cast<Node *>(body);
+                auto[node_head, node_size] = get_node_head(node);
+                if (!node_head) {
+                    send_uint16(session->connection, REQUEST_ERR_NOT_FOUND);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                delete[] node_head;
+                std::string owner = get_node_owner(node);
+                send_uint16(session->connection, REQUEST_OK);
+                send_uint64(session->connection, owner.length());
+                send_exact(session->connection, owner.length(), owner.c_str());
             } else {
                 send_uint16(session->connection, REQUEST_ERR_INVALID_CMD);
                 send_uint64(session->connection, 0);
@@ -319,11 +337,7 @@ ReadWrite CloudServer::get_user_rights(Node node, const std::string &user) {
     ReadWrite user_rights;
     auto[node_head, head_size] = get_node_head(node);
     uint8_t rights = *reinterpret_cast<const uint8_t *>(node_head + NODE_HEAD_OFFSET_RIGHTS);
-    Node home = node;
-    uint16_t error;
-    while (get_parent(home, home, error));
-    std::string owner;
-    get_home_owner(home, error, owner);
+    std::string owner = get_node_owner(node);
     if (owner == user) user_rights.read = user_rights.write = true;
     //TODO: add group rights
     if (rights & NODE_RIGHTS_ALL_READ) user_rights.read = true;
@@ -383,6 +397,15 @@ Node CloudServer::generate_node() {
 
 std::string CloudServer::get_node_head_path(Node node) {
     return config.nodes_head_directory + PATH_DIV + node2string(node);
+}
+
+std::string CloudServer::get_node_owner(Node node) {
+    Node home = node;
+    uint16_t error;
+    while (get_parent(home, home, error));
+    std::string owner;
+    get_home_owner(home, error, owner);
+    return owner;
 }
 
 CloudServer::Session::Session(NetConnection *connection) : connection(connection) {

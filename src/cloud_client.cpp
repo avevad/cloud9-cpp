@@ -115,6 +115,22 @@ void CloudClient::make_node(Node parent, const std::string &name, uint8_t type) 
     }
 }
 
+std::string CloudClient::get_node_owner(Node node) {
+    std::unique_lock<std::mutex> locker(lock);
+    send_uint16(connection, REQUEST_CMD_GET_NODE_OWNER);
+    send_uint64(connection, sizeof(Node));
+    send_exact(connection, sizeof(Node), &node);
+    auto status = read_uint16(connection);
+    auto size = read_uint64(connection);
+    auto *buffer = new char[size];
+    read_exact(connection, size, buffer);
+    if (status != REQUEST_OK) {
+        delete[] buffer;
+        throw CloudRequestError(status);
+    }
+    return std::string(buffer, size);
+}
+
 CloudRequestError::CloudRequestError(uint16_t status, std::string info) : desc(
         info.empty() ? request_status_string(status) : (request_status_string(status) + " (" + info + ")")),
                                                                           status(status), info(std::move(info)) {
