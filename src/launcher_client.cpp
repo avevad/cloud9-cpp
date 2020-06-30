@@ -90,6 +90,29 @@ Node get_path_node(CloudClient *client, Node cwd, const std::string &path) {
     } else return get_relative_path_node(client, cwd, path);
 }
 
+std::string get_node_path(CloudClient *client, Node node) {
+    Node parent;
+    bool has_parent;
+    try {
+        has_parent = client->get_parent(node, &parent);
+    } catch (CloudRequestError &error) {
+        if (error.status == REQUEST_ERR_FORBIDDEN)
+            return CLOUD_PATH_HOME + client->get_node_owner(node) + CLOUD_PATH_DIV + std::string(1, CLOUD_PATH_UNKNOWN);
+        else throw;
+    }
+    if (has_parent) {
+        std::string name;
+        client->list_directory(parent, [&name, node](const std::string &child_name, Node child) {
+            if (child == node)
+                name = child_name;
+        });
+        return get_node_path(client, parent) + CLOUD_PATH_DIV + name;
+    } else {
+        return CLOUD_PATH_HOME + client->get_node_owner(node);
+    }
+}
+
+
 int shell(CloudClient *client, NetConnection *connection, const std::string &login, const std::string &host) {
     const std::map<std::string, void (*)(CloudClient *, Node &, std::vector<std::string> &)> commands{
             {"ls",    [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
@@ -115,7 +138,7 @@ int shell(CloudClient *client, NetConnection *connection, const std::string &log
             {"pwd",   [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
                 if (!args.empty()) std::cerr << "pwd: too much arguments" << std::endl;
                 else {
-                    std::cout << "#" << node2string(cwd) << std::endl;
+                    std::cout << get_node_path(client, cwd) << std::endl;
                 }
             }},
             {"mkdir", [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
