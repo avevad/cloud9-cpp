@@ -223,6 +223,28 @@ void CloudServer::listener_routine(Session *session) {
                     continue;
                 }
                 auto[parent_data, parent_data_size] = get_node_data(parent);
+                {
+                    auto *pos = parent_data;
+                    bool exists = false;
+                    while (pos < parent_data + parent_data_size) {
+                        pos += sizeof(Node);
+                        uint8_t child_name_len = *reinterpret_cast<uint8_t *>(pos);
+                        pos++;
+                        std::string child_name(pos, child_name_len);
+                        if (child_name == name) {
+                            exists = true;
+                            break;
+                        }
+                        pos += child_name_len;
+                    }
+                    if (exists) {
+                        delete[] parent_data;
+                        delete[] parent_head;
+                        send_uint16(session->connection, REQUEST_ERR_EXISTS);
+                        send_uint64(session->connection, 0);
+                        continue;
+                    }
+                }
                 std::string parent_data_string(parent_data, parent_data_size);
                 delete[] parent_data;
                 Node node = generate_node();
