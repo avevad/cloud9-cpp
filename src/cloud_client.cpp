@@ -78,7 +78,7 @@ void CloudClient::list_directory(Node node, const std::function<void(std::string
     delete[] buffer;
 }
 
-void CloudClient::get_parent(Node node, Node *parent, bool *has_parent) {
+bool CloudClient::get_parent(Node node, Node *parent) {
     std::unique_lock<std::mutex> locker(lock);
     send_uint16(connection, REQUEST_CMD_GET_PARENT);
     send_uint64(connection, sizeof(Node));
@@ -92,9 +92,9 @@ void CloudClient::get_parent(Node node, Node *parent, bool *has_parent) {
         throw CloudRequestError(status);
     }
     bool result = size == sizeof(Node);
-    if (has_parent) *has_parent = result;
     if (result && parent) *parent = *reinterpret_cast<Node *>(buffer);
     delete[] buffer;
+    return result;
 }
 
 void CloudClient::make_node(Node parent, const std::string &name, uint8_t type) {

@@ -23,7 +23,7 @@ public:
 
     void list_directory(Node node, const std::function<void(std::string, Node)> &callback);
 
-    void get_parent(Node node, Node *parent, bool *has_parent);
+    bool get_parent(Node node, Node *parent);
 
     void make_node(Node parent, const std::string &name, uint8_t type);
 };
