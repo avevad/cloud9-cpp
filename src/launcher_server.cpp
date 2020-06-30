@@ -5,7 +5,7 @@
 #include <filesystem>
 #include <fstream>
 
-#include "lua5.3/lua.h"
+#include "lua.h"
 
 #include "networking_ssl.h"
 #include "networking_tcp.h"
