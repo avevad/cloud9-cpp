@@ -5,6 +5,7 @@
 #include <thread>
 #include <vector>
 #include <set>
+#include <mutex>
 #include "networking.h"
 #include "cloud_common.h"
 
@@ -40,6 +41,7 @@ private:
     std::vector<std::thread *> listeners;
     std::set<Session *> sessions;
     bool shutting_down = false;
+    std::mutex lock;
 
     void connector_routine();
 

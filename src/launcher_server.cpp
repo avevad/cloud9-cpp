@@ -5,7 +5,9 @@
 #include <filesystem>
 #include <fstream>
 
+extern "C" {
 #include "lua.h"
+}
 
 #include "networking_ssl.h"
 #include "networking_tcp.h"
