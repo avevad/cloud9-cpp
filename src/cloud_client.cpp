@@ -169,6 +169,42 @@ void CloudClient::fd_close(uint8_t fd) {
     delete[] buffer;
 }
 
+void CloudClient::fd_write(uint8_t fd, uint32_t n, const void *bytes) {
+    std::unique_lock<std::mutex> locker(lock);
+    send_uint16(connection, REQUEST_CMD_FD_WRITE);
+    send_uint64(connection, 1 + n);
+    send_uint8(connection, fd);
+    send_exact(connection, n, bytes);
+    auto status = read_uint16(connection);
+    auto size = read_uint64(connection);
+    auto *buffer = new char[size];
+    read_exact(connection, size, buffer);
+    if (status != REQUEST_OK) {
+        delete[] buffer;
+        throw CloudRequestError(status);
+    }
+    delete[] buffer;
+}
+
+uint32_t CloudClient::fd_read(uint8_t fd, uint32_t n, void *bytes) {
+    std::unique_lock<std::mutex> locker(lock);
+    send_uint16(connection, REQUEST_CMD_FD_READ);
+    send_uint64(connection, 1 + sizeof(uint32_t));
+    send_uint8(connection, fd);
+    send_uint32(connection, n);
+    auto status = read_uint16(connection);
+    auto size = read_uint64(connection);
+    auto *buffer = new char[size];
+    read_exact(connection, size, buffer);
+    if (status != REQUEST_OK) {
+        delete[] buffer;
+        throw CloudRequestError(status);
+    }
+    std::memcpy(bytes, buffer, size);
+    delete[] buffer;
+    return size;
+}
+
 CloudRequestError::CloudRequestError(uint16_t status, std::string info) : desc(
         info.empty() ? request_status_string(status) : (request_status_string(status) + " (" + info + ")")),
                                                                           status(status), info(std::move(info)) {

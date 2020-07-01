@@ -55,15 +55,21 @@ static void send_uint32(NetConnection *connection, uint32_t n) {
     send_exact(connection, 4, &buffer);
 }
 
-static uint32_t read_uint32(NetConnection *connection) {
-    uint8_t buffer[4];
-    read_exact(connection, 4, &buffer);
+static uint32_t buf_read_uint32(void* buffer) {
+    auto *r_buffer = reinterpret_cast<uint8_t *>(buffer);
     uint32_t n = 0;
-    for (uint8_t e : buffer) {
+    for (size_t i = 0; i < sizeof(uint32_t); i++) {
+        uint8_t e = r_buffer[i];
         n <<= uint32_t(8);
         n |= uint32_t(e);
     }
     return n;
+}
+
+static uint32_t read_uint32(NetConnection *connection) {
+    uint8_t buffer[4];
+    read_exact(connection, 4, &buffer);
+    return buf_read_uint32(buffer);
 }
 
 static void send_uint64(NetConnection *connection, uint64_t n) {
@@ -134,6 +140,8 @@ static const uint16_t REQUEST_CMD_MAKE_NODE = 5;
 static const uint16_t REQUEST_CMD_GET_NODE_OWNER = 6;
 static const uint16_t REQUEST_CMD_FD_OPEN = 7;
 static const uint16_t REQUEST_CMD_FD_CLOSE = 8;
+static const uint16_t REQUEST_CMD_FD_READ = 9;
+static const uint16_t REQUEST_CMD_FD_WRITE = 10;
 static const uint16_t REQUEST_OK = 0;
 static const uint16_t REQUEST_ERR_BODY_TOO_LARGE = 1;
 static const uint16_t REQUEST_ERR_INVALID_CMD = 2;
@@ -148,6 +156,9 @@ static const uint16_t REQUEST_ERR_BUSY = 10;
 static const uint16_t REQUEST_ERR_NOT_A_FILE = 11;
 static const uint16_t REQUEST_ERR_TOO_MANY_FDS = 12;
 static const uint16_t REQUEST_ERR_BAD_FD = 13;
+static const uint16_t REQUEST_ERR_END_OF_FILE = 14;
+static const uint16_t REQUEST_ERR_NOT_SUPPORTED = 15;
+static const uint16_t REQUEST_ERR_READ_BLOCK_IS_TOO_LARGE = 16;
 
 static const uint64_t USER_PASSWORD_SALT_LENGTH = 32;
 
@@ -191,6 +202,9 @@ static std::string request_status_string(uint16_t status) {
     else if (status == REQUEST_ERR_NOT_A_FILE) return "not a regular file";
     else if (status == REQUEST_ERR_TOO_MANY_FDS) return "too many open files";
     else if (status == REQUEST_ERR_BAD_FD) return "bad file descriptor";
+    else if (status == REQUEST_ERR_END_OF_FILE) return "end of file";
+    else if (status == REQUEST_ERR_NOT_SUPPORTED) return "operation not supported";
+    else if (status == REQUEST_ERR_READ_BLOCK_IS_TOO_LARGE) return "block size is too big";
     else return "unknown request error (" + std::to_string(status) + ")";
 }
 

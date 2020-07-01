@@ -10,6 +10,8 @@
 #include "networking.h"
 #include "cloud_common.h"
 
+#define MAX_READ_BLOCK_SIZE (1024 * 1024 * 32) // 32 MiB
+
 class CloudConfig {
 public:
     std::string users_directory;

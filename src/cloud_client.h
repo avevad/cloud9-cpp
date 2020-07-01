@@ -32,6 +32,10 @@ public:
     uint8_t fd_open(Node node, uint8_t mode);
 
     void fd_close(uint8_t fd);
+
+    uint32_t fd_read(uint8_t fd, uint32_t n, void *bytes);
+
+    void fd_write(uint8_t fd, uint32_t n, const void *bytes);
 };
 
 class CloudInitError : public std::exception {

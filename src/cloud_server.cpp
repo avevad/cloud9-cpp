@@ -348,22 +348,99 @@ void CloudServer::listener_routine(Session *session) {
                 if (size != 1) {
                     send_uint16(session->connection, REQUEST_ERR_MALFORMED_CMD);
                     send_uint64(session->connection, 0);
+                    continue;
                 }
                 uint8_t fd = *reinterpret_cast<uint8_t *>(body);
                 if (fd >= session->fds.size()) {
                     send_uint16(session->connection, REQUEST_ERR_BAD_FD);
                     send_uint64(session->connection, 0);
+                    continue;
                 }
                 Session::FileDescriptor descriptor = session->fds[fd];
                 if (!descriptor.stream) {
                     send_uint16(session->connection, REQUEST_ERR_BAD_FD);
                     send_uint64(session->connection, 0);
+                    continue;
                 }
                 close_fd(session, descriptor);
                 session->fds[fd].stream = nullptr;
                 send_uint16(session->connection, REQUEST_OK);
                 send_uint64(session->connection, 1);
                 send_uint8(session->connection, fd);
+            } else if (cmd == REQUEST_CMD_FD_WRITE) {
+                if (size < 1) {
+                    send_uint16(session->connection, REQUEST_ERR_MALFORMED_CMD);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                uint8_t fd = *reinterpret_cast<uint8_t *>(body);
+                if (fd >= session->fds.size()) {
+                    send_uint16(session->connection, REQUEST_ERR_BAD_FD);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                Session::FileDescriptor descriptor = session->fds[fd];
+                if (!descriptor.stream) {
+                    send_uint16(session->connection, REQUEST_ERR_BAD_FD);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                if (!(descriptor.mode & NODE_FD_MODE_WRITE)) {
+                    send_uint16(session->connection, REQUEST_ERR_NOT_SUPPORTED);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                descriptor.stream->write(body + 1, size - 1);
+                send_uint16(session->connection, REQUEST_OK);
+                send_uint64(session->connection, 0);
+            } else if (cmd == REQUEST_CMD_FD_READ) {
+                if (size != 1 + sizeof(uint32_t)) {
+                    send_uint16(session->connection, REQUEST_ERR_MALFORMED_CMD);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                uint8_t fd = *reinterpret_cast<uint8_t *>(body);
+                if (fd >= session->fds.size()) {
+                    send_uint16(session->connection, REQUEST_ERR_BAD_FD);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                Session::FileDescriptor descriptor = session->fds[fd];
+                if (!descriptor.stream) {
+                    send_uint16(session->connection, REQUEST_ERR_BAD_FD);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                if (!(descriptor.mode & NODE_FD_MODE_READ)) {
+                    send_uint16(session->connection, REQUEST_ERR_NOT_SUPPORTED);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                if(descriptor.stream->eof()) {
+                    send_uint16(session->connection, REQUEST_ERR_END_OF_FILE);
+                    send_uint64(session->connection, 0);
+                    continue;
+                } else {
+                    uint32_t count = buf_read_uint32(body + 1);
+                    if (count > MAX_READ_BLOCK_SIZE) {
+                        send_uint16(session->connection, REQUEST_ERR_READ_BLOCK_IS_TOO_LARGE);
+                        send_uint64(session->connection, 0);
+                        continue;
+                    } else {
+                        char *buffer = new char[count];
+                        descriptor.stream->read(buffer, count);
+                        uint32_t read = descriptor.stream->gcount();
+                        try {
+                            send_uint16(session->connection, REQUEST_OK);
+                            send_uint64(session->connection, read);
+                            send_exact(session->connection, read, buffer);
+                        } catch (...) {
+                            delete[] buffer;
+                            throw;
+                        }
+                        delete[] buffer;
+                    }
+                }
             } else {
                 send_uint16(session->connection, REQUEST_ERR_INVALID_CMD);
                 send_uint64(session->connection, 0);
