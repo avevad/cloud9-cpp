@@ -132,6 +132,8 @@ static const uint16_t REQUEST_CMD_GOODBYE = 3;
 static const uint16_t REQUEST_CMD_GET_PARENT = 4;
 static const uint16_t REQUEST_CMD_MAKE_NODE = 5;
 static const uint16_t REQUEST_CMD_GET_NODE_OWNER = 6;
+static const uint16_t REQUEST_CMD_FD_OPEN = 7;
+static const uint16_t REQUEST_CMD_FD_CLOSE = 8;
 static const uint16_t REQUEST_OK = 0;
 static const uint16_t REQUEST_ERR_BODY_TOO_LARGE = 1;
 static const uint16_t REQUEST_ERR_INVALID_CMD = 2;
@@ -142,6 +144,10 @@ static const uint16_t REQUEST_ERR_FORBIDDEN = 6;
 static const uint16_t REQUEST_ERR_INVALID_NAME = 7;
 static const uint16_t REQUEST_ERR_INVALID_TYPE = 8;
 static const uint16_t REQUEST_ERR_EXISTS = 9;
+static const uint16_t REQUEST_ERR_BUSY = 10;
+static const uint16_t REQUEST_ERR_NOT_A_FILE = 11;
+static const uint16_t REQUEST_ERR_TOO_MANY_FDS = 12;
+static const uint16_t REQUEST_ERR_BAD_FD = 13;
 
 static const uint64_t USER_PASSWORD_SALT_LENGTH = 32;
 
@@ -149,6 +155,9 @@ static const uint64_t NODE_HEAD_OFFSET_TYPE = 0;
 static const uint64_t NODE_HEAD_OFFSET_RIGHTS = 1;
 static const uint64_t NODE_HEAD_OFFSET_OWNER_GROUP_SIZE = 2;
 static const uint64_t NODE_HEAD_OFFSET_OWNER_GROUP = 3;
+
+static const uint8_t NODE_FD_MODE_READ = 0b10;
+static const uint8_t NODE_FD_MODE_WRITE = 0b01;
 
 static const uint8_t NODE_RIGHTS_GROUP_READ = 0b1000;
 static const uint8_t NODE_RIGHTS_GROUP_WRITE = 0b0100;
@@ -178,6 +187,10 @@ static std::string request_status_string(uint16_t status) {
     else if (status == REQUEST_ERR_INVALID_NAME) return "invalid name";
     else if (status == REQUEST_ERR_INVALID_TYPE) return "invalid type";
     else if (status == REQUEST_ERR_EXISTS) return "object exists";
+    else if (status == REQUEST_ERR_BUSY) return "resource busy";
+    else if (status == REQUEST_ERR_NOT_A_FILE) return "not a regular file";
+    else if (status == REQUEST_ERR_TOO_MANY_FDS) return "too many open files";
+    else if (status == REQUEST_ERR_BAD_FD) return "bad file descriptor";
     else return "unknown request error (" + std::to_string(status) + ")";
 }
 
@@ -189,6 +202,10 @@ typedef struct {
 
 static bool operator==(const Node &a, const Node &b) {
     return std::memcmp(&a, &b, sizeof(Node)) == 0;
+}
+
+static bool operator<(const Node &a, const Node &b) {
+    return std::memcmp(&a, &b, sizeof(Node)) < 0;
 }
 
 static std::string node2string(Node node) {

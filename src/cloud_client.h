@@ -28,6 +28,10 @@ public:
     void make_node(Node parent, const std::string &name, uint8_t type);
 
     std::string get_node_owner(Node node);
+
+    uint8_t fd_open(Node node, uint8_t mode);
+
+    void fd_close(uint8_t fd);
 };
 
 class CloudInitError : public std::exception {

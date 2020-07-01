@@ -69,7 +69,7 @@ void CloudClient::list_directory(Node node, const std::function<void(std::string
     while (offset < size) {
         Node child = *reinterpret_cast<Node *>(buffer + offset);
         offset += sizeof(Node);
-        auto length = (size_t) * reinterpret_cast<unsigned char *>(buffer + offset);
+        auto length = (size_t) *reinterpret_cast<unsigned char *>(buffer + offset);
         offset += 1;
         std::string name(reinterpret_cast<const char *>(buffer + offset), length);
         offset += length;
@@ -113,6 +113,7 @@ void CloudClient::make_node(Node parent, const std::string &name, uint8_t type) 
         delete[] buffer;
         throw CloudRequestError(status);
     }
+    delete[] buffer;
 }
 
 std::string CloudClient::get_node_owner(Node node) {
@@ -128,7 +129,44 @@ std::string CloudClient::get_node_owner(Node node) {
         delete[] buffer;
         throw CloudRequestError(status);
     }
-    return std::string(buffer, size);
+    std::string owner(buffer, size);
+    delete[] buffer;
+    return owner;
+}
+
+uint8_t CloudClient::fd_open(Node node, uint8_t mode) {
+    std::unique_lock<std::mutex> locker(lock);
+    send_uint16(connection, REQUEST_CMD_FD_OPEN);
+    send_uint64(connection, sizeof(Node) + 1);
+    send_exact(connection, sizeof(Node), &node);
+    send_uint8(connection, mode);
+    auto status = read_uint16(connection);
+    auto size = read_uint64(connection);
+    auto *buffer = new char[size];
+    read_exact(connection, size, buffer);
+    if (status != REQUEST_OK) {
+        delete[] buffer;
+        throw CloudRequestError(status);
+    }
+    uint8_t fd = *reinterpret_cast<uint8_t *>(buffer);
+    delete[] buffer;
+    return fd;
+}
+
+void CloudClient::fd_close(uint8_t fd) {
+    std::unique_lock<std::mutex> locker(lock);
+    send_uint16(connection, REQUEST_CMD_FD_CLOSE);
+    send_uint64(connection, 1);
+    send_uint8(connection, fd);
+    auto status = read_uint16(connection);
+    auto size = read_uint64(connection);
+    auto *buffer = new char[size];
+    read_exact(connection, size, buffer);
+    if (status != REQUEST_OK) {
+        delete[] buffer;
+        throw CloudRequestError(status);
+    }
+    delete[] buffer;
 }
 
 CloudRequestError::CloudRequestError(uint16_t status, std::string info) : desc(

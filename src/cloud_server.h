@@ -6,6 +6,7 @@
 #include <vector>
 #include <set>
 #include <mutex>
+#include <map>
 #include "networking.h"
 #include "cloud_common.h"
 
@@ -28,8 +29,16 @@ class CloudServer final {
 private:
     class Session {
     public:
+        class FileDescriptor {
+        public:
+            Node node;
+            uint8_t mode;
+            std::fstream *stream;
+        };
+
         NetConnection *const connection;
         std::string login;
+        std::vector<FileDescriptor> fds;
 
         explicit Session(NetConnection *connection);
     };
@@ -42,6 +51,8 @@ private:
     std::set<Session *> sessions;
     bool shutting_down = false;
     std::mutex lock;
+    std::map<Node, std::set<Session *>> readers;
+    std::map<Node, Session *> writers;
 
     void connector_routine();
 
@@ -64,6 +75,10 @@ private:
     Node generate_node();
 
     std::string get_node_owner(Node node);
+
+    bool node_exists(Node node);
+
+    void close_fd(Session *session, Session::FileDescriptor fd);
 
 public:
     CloudServer(NetServer *net, const CloudConfig &config);

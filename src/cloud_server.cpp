@@ -278,17 +278,92 @@ void CloudServer::listener_routine(Session *session) {
                     continue;
                 }
                 Node node = *reinterpret_cast<Node *>(body);
-                auto[node_head, node_size] = get_node_head(node);
-                if (!node_head) {
+                if (!node_exists(node)) {
                     send_uint16(session->connection, REQUEST_ERR_NOT_FOUND);
                     send_uint64(session->connection, 0);
                     continue;
                 }
-                delete[] node_head;
                 std::string owner = get_node_owner(node);
                 send_uint16(session->connection, REQUEST_OK);
                 send_uint64(session->connection, owner.length());
                 send_exact(session->connection, owner.length(), owner.c_str());
+            } else if (cmd == REQUEST_CMD_FD_OPEN) {
+                if (size != sizeof(Node) + 1) {
+                    send_uint16(session->connection, REQUEST_ERR_MALFORMED_CMD);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                Node node = *reinterpret_cast<Node *>(body);
+                if (!node_exists(node)) {
+                    send_uint16(session->connection, REQUEST_ERR_NOT_FOUND);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                auto *node_head = get_node_head(node).first;
+                if (*reinterpret_cast<uint8_t *>(node_head + NODE_HEAD_OFFSET_TYPE) != NODE_TYPE_FILE) {
+                    delete[] node_head;
+                    send_uint16(session->connection, REQUEST_ERR_NOT_A_FILE);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                delete[] node_head;
+                uint8_t mode = *reinterpret_cast<uint8_t *>(body + sizeof(Node));
+                bool read = mode & NODE_FD_MODE_READ;
+                bool write = mode & NODE_FD_MODE_WRITE;
+                ReadWrite rights = get_user_rights(node, session->login);
+                if ((read && !rights.read) || (write && !rights.write)) {
+                    send_uint16(session->connection, REQUEST_ERR_FORBIDDEN);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                if ((read && writers[node]) || (write && (writers[node] || !readers[node].empty()))) {
+                    send_uint16(session->connection, REQUEST_ERR_BUSY);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                size_t fd;
+                for (fd = 0; fd < session->fds.size(); fd++) {
+                    if (!session->fds[fd].stream) break;
+                }
+                if (fd == session->fds.size()) {
+                    if (fd > 0xFF) {
+                        send_uint16(session->connection, REQUEST_ERR_TOO_MANY_FDS);
+                        send_uint64(session->connection, 0);
+                        continue;
+                    } else session->fds.emplace_back();
+                }
+                auto s_mode = std::ios_base::binary;
+                if (read) s_mode |= std::ios_base::in;
+                if (write) s_mode |= std::ios_base::out;
+                auto *stream = new std::fstream(get_node_data_path(node), s_mode);
+                session->fds[fd].node = node;
+                session->fds[fd].stream = stream;
+                session->fds[fd].mode = mode;
+                if (read) readers[node].insert(session);
+                if (write) writers[node] = session;
+                send_uint16(session->connection, REQUEST_OK);
+                send_uint64(session->connection, 1);
+                send_uint8(session->connection, fd);
+            } else if (cmd == REQUEST_CMD_FD_CLOSE) {
+                if (size != 1) {
+                    send_uint16(session->connection, REQUEST_ERR_MALFORMED_CMD);
+                    send_uint64(session->connection, 0);
+                }
+                uint8_t fd = *reinterpret_cast<uint8_t *>(body);
+                if (fd >= session->fds.size()) {
+                    send_uint16(session->connection, REQUEST_ERR_BAD_FD);
+                    send_uint64(session->connection, 0);
+                }
+                Session::FileDescriptor descriptor = session->fds[fd];
+                if (!descriptor.stream) {
+                    send_uint16(session->connection, REQUEST_ERR_BAD_FD);
+                    send_uint64(session->connection, 0);
+                }
+                close_fd(session, descriptor);
+                session->fds[fd].stream = nullptr;
+                send_uint16(session->connection, REQUEST_OK);
+                send_uint64(session->connection, 1);
+                send_uint8(session->connection, fd);
             } else {
                 send_uint16(session->connection, REQUEST_ERR_INVALID_CMD);
                 send_uint64(session->connection, 0);
@@ -298,6 +373,10 @@ void CloudServer::listener_routine(Session *session) {
         if (!shutting_down && !goodbye)
             std::cerr << "'" << session->login << "' listener stopped with exception: " << exception.what()
                       << std::endl;
+    }
+    std::unique_lock locker(lock);
+    for (Session::FileDescriptor fd : session->fds) {
+        if (fd.stream) close_fd(session, fd);
     }
     delete[] body;
     session->connection->close();
@@ -407,6 +486,16 @@ std::string CloudServer::get_node_owner(Node node) {
     std::string owner;
     get_home_owner(home, error, owner);
     return owner;
+}
+
+bool CloudServer::node_exists(Node node) {
+    return std::filesystem::is_regular_file(get_node_head_path(node));
+}
+
+void CloudServer::close_fd(Session *session, CloudServer::Session::FileDescriptor fd) {
+    delete fd.stream;
+    if (fd.mode & NODE_FD_MODE_READ) readers[fd.node].erase(session);
+    if (fd.mode & NODE_FD_MODE_WRITE) writers[fd.node] = nullptr;
 }
 
 CloudServer::Session::Session(NetConnection *connection) : connection(connection) {
