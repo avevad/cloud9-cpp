@@ -117,7 +117,7 @@ int shell(CloudClient *client, NetConnection *connection, const std::string &log
     const std::map<std::string, void (*)(CloudClient *, Node &, std::vector<std::string> &)> commands{
             {"ls",    [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
                 if (args.size() > 1) {
-                    std::cerr << "ls: too much arguments" << std::endl;
+                    std::cerr << "ls: too many arguments" << std::endl;
                     return;
                 }
                 std::string flags;
@@ -133,10 +133,10 @@ int shell(CloudClient *client, NetConnection *connection, const std::string &log
                     cwd = client->get_home();
                 } else if (args.size() == 1) {
                     cwd = get_path_node(client, cwd, args[0]);
-                } else std::cerr << "cd: too much arguments" << std::endl;
+                } else std::cerr << "cd: too many arguments" << std::endl;
             }},
             {"pwd",   [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
-                if (!args.empty()) std::cerr << "pwd: too much arguments" << std::endl;
+                if (!args.empty()) std::cerr << "pwd: too many arguments" << std::endl;
                 else {
                     std::cout << CLOUD_PATH_HOME << client->get_node_owner(cwd) << get_node_path(client, cwd)
                               << std::endl;
@@ -154,7 +154,14 @@ int shell(CloudClient *client, NetConnection *connection, const std::string &log
                         name = path.substr(iter - name.begin() + 1);
                     }
                     client->make_node(parent, name, NODE_TYPE_DIRECTORY);
-                } else std::cerr << "mkdir: too much arguments" << std::endl;
+                } else std::cerr << "mkdir: too many arguments" << std::endl;
+            }},
+            {"node",  [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
+                if (args.empty()) std::cout << "#" << node2string(cwd) << std::endl;
+                else if (args.size() == 1) {
+                    std::string result = node2string(get_path_node(client, cwd, args[0]));
+                    std::cout << "#" << result << std::endl;
+                } else std::cerr << "node: too many arguments" << std::endl;
             }}
     };
     Node cwd = client->get_home(login);
