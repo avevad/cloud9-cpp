@@ -270,7 +270,8 @@ void CloudServer::listener_routine(Session *session) {
                 }
                 delete[] parent_head;
                 send_uint16(session->connection, REQUEST_OK);
-                send_uint64(session->connection, 0);
+                send_uint64(session->connection, sizeof(Node));
+                send_exact(session->connection, sizeof(Node), &node);
             } else if (cmd == REQUEST_CMD_GET_NODE_OWNER) {
                 if (size != sizeof(Node)) {
                     send_uint16(session->connection, REQUEST_ERR_MALFORMED_CMD);

@@ -101,7 +101,7 @@ bool CloudClient::get_parent(Node node, Node *parent) {
     return result;
 }
 
-void CloudClient::make_node(Node parent, const std::string &name, uint8_t type) {
+Node CloudClient::make_node(Node parent, const std::string &name, uint8_t type) {
     std::unique_lock<std::mutex> locker(lock);
     send_uint16(connection, REQUEST_CMD_MAKE_NODE);
     send_uint64(connection, sizeof(Node) + 1 + name.length() + 1);
@@ -117,7 +117,9 @@ void CloudClient::make_node(Node parent, const std::string &name, uint8_t type) 
         delete[] buffer;
         throw CloudRequestError(status);
     }
+    Node node = *reinterpret_cast<Node *>(buffer);
     delete[] buffer;
+    return node;
 }
 
 std::string CloudClient::get_node_owner(Node node) {

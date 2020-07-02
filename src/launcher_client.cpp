@@ -194,22 +194,14 @@ put_node(CloudClient *client, const std::string &file, Node dst_dir, bool info, 
         if (info)
             std::cout << file << "\t" << "->" << "\t~" << client->get_node_owner(dst_dir)
                       << get_node_path(client, dst_dir) << CLOUD_PATH_DIV << name << std::endl;
-        client->make_node(dst_dir, name, NODE_TYPE_FILE);
-        Node dst;
-        client->list_directory(dst_dir, [&dst, &name](const std::string &child_name, Node child) {
-            if (child_name == name) dst = child;
-        });
+        Node dst = client->make_node(dst_dir, name, NODE_TYPE_FILE);
         put_file(client, file, dst, info, block_size);
     } else if (std::filesystem::is_directory(file)) {
         if (recursive) {
             if (info)
                 std::cout << "mkdir " << client->get_node_owner(dst_dir) << get_node_path(client, dst_dir)
                           << CLOUD_PATH_DIV << name << std::endl;
-            client->make_node(dst_dir, name, NODE_TYPE_DIRECTORY);
-            Node dst;
-            client->list_directory(dst_dir, [&dst, &name](const std::string &child_name, Node child) {
-                if (child_name == name) dst = child;
-            });
+            Node dst = client->make_node(dst_dir, name, NODE_TYPE_DIRECTORY);
             for (const auto &child : std::filesystem::directory_iterator(file)) {
                 put_node(client, child.path(), dst, info, block_size, recursive);
             }
