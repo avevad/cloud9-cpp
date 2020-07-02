@@ -110,7 +110,7 @@ static const char CLOUD_PATH_UNKNOWN = '?';
 
 static bool is_valid_name(const std::string &name) {
     if (name.length() <= 0 || name.length() > 0xFF) return false;
-    if (name == "..") return false;
+    if (name == ".." | name == ".") return false;
     for (char c : name) {
         if (c == CLOUD_PATH_DIV || c == CLOUD_PATH_HOME || c == CLOUD_PATH_NODE || c == CLOUD_PATH_UNKNOWN)
             return false;
