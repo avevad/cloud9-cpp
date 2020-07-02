@@ -70,7 +70,7 @@ Node get_relative_path_node(CloudClient *client, Node base, const std::string &p
     parts.push_back(path.substr(start, path.size()));
     Node current = base;
     for (const std::string &part : parts) {
-        if (part.empty() || part == ".") continue;
+        if (part.empty()) continue;
         else if (part == "..") client->get_parent(current, &current);
         else {
             bool found = false;
