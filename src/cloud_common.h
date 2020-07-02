@@ -55,7 +55,7 @@ static void send_uint32(NetConnection *connection, uint32_t n) {
     send_exact(connection, 4, &buffer);
 }
 
-static uint32_t buf_read_uint32(void* buffer) {
+static uint32_t buf_read_uint32(void *buffer) {
     auto *r_buffer = reinterpret_cast<uint8_t *>(buffer);
     uint32_t n = 0;
     for (size_t i = 0; i < sizeof(uint32_t); i++) {
@@ -209,16 +209,16 @@ static std::string request_status_string(uint16_t status) {
 }
 
 static std::string request_name(uint16_t request) {
-    if(request == REQUEST_CMD_GET_HOME) return "HOME";
-    else if(request == REQUEST_CMD_LIST_DIRECTORY ) return "LIST";
-    else if(request == REQUEST_CMD_GOODBYE ) return "TERM";
-    else if(request == REQUEST_CMD_GET_PARENT ) return "GPAR";
-    else if(request == REQUEST_CMD_MAKE_NODE ) return "MAKE";
-    else if(request == REQUEST_CMD_GET_NODE_OWNER ) return "GOWN";
-    else if(request == REQUEST_CMD_FD_OPEN ) return "FDOP";
-    else if(request == REQUEST_CMD_FD_CLOSE ) return "FDCL";
-    else if(request == REQUEST_CMD_FD_READ ) return "FDRD";
-    else if(request == REQUEST_CMD_FD_WRITE ) return "FDWR";
+    if (request == REQUEST_CMD_GET_HOME) return "HOME";
+    else if (request == REQUEST_CMD_LIST_DIRECTORY) return "LIST";
+    else if (request == REQUEST_CMD_GOODBYE) return "TERM";
+    else if (request == REQUEST_CMD_GET_PARENT) return "GPAR";
+    else if (request == REQUEST_CMD_MAKE_NODE) return "MAKE";
+    else if (request == REQUEST_CMD_GET_NODE_OWNER) return "GOWN";
+    else if (request == REQUEST_CMD_FD_OPEN) return "FDOP";
+    else if (request == REQUEST_CMD_FD_CLOSE) return "FDCL";
+    else if (request == REQUEST_CMD_FD_READ) return "FDRD";
+    else if (request == REQUEST_CMD_FD_WRITE) return "FDWR";
     else return std::to_string(request);
 }
 
@@ -278,20 +278,20 @@ static std::pair<double, std::string> human_readable_size(size_t n, size_t base 
     const char *prefixes = " kMGTPEZY";
     double m = n;
     const char *prefix = prefixes;
-    while(m > base && *(prefix + 1) != '\0') {
+    while (m > base && *(prefix + 1) != '\0') {
         m /= double(base);
         prefix++;
     }
     return {m, (prefix == prefixes) ? std::string() : std::string(1, *prefix)};
 }
 
-static std::string human_readable_time(size_t time_s){
+static std::string human_readable_time(size_t time_s) {
     std::string h = std::to_string(time_s / 3600);
-    if(h.size() < 2) h = "0" + h;
+    if (h.size() < 2) h = "0" + h;
     std::string m = std::to_string((time_s / 60) % 60);
-    if(m.size() < 2) m = "0" + m;
+    if (m.size() < 2) m = "0" + m;
     std::string s = std::to_string(time_s % 60);
-    if(s.size() < 2) s = "0" + s;
+    if (s.size() < 2) s = "0" + s;
     return h + ":" + m + ":" + s;
 }
 

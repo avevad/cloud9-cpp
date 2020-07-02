@@ -12,7 +12,7 @@ CloudConfig::~CloudConfig() = default;
 CloudServer::CloudServer(NetServer *net, const CloudConfig &config) : config(config), net(net),
                                                                       connector(new std::thread(
                                                                               [this] { connector_routine(); })) {
-    if(!config.access_log.empty()) {
+    if (!config.access_log.empty()) {
         access_log.open(config.access_log, std::ios_base::out | std::ios_base::app);
     }
 }
@@ -469,7 +469,7 @@ void CloudServer::listener_routine(Session *session) {
                     send_uint64(session->connection, 0);
                     continue;
                 }
-                if(descriptor.stream->eof()) {
+                if (descriptor.stream->eof()) {
                     send_uint16(session->connection, REQUEST_ERR_END_OF_FILE);
                     send_uint64(session->connection, 0);
                     continue;

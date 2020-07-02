@@ -151,7 +151,7 @@ void load_config(const char *config_file, LauncherConfig &config) {
 
     lua_pushstring(state, CONFIG_OPTION_ACCESS_LOG);
     lua_gettable(state, config_table);
-    if(lua_isstring(state, lua_gettop(state)))
+    if (lua_isstring(state, lua_gettop(state)))
         config.access_log = lua_tostring(state, lua_gettop(state));
 
 #undef NO_OPTION
