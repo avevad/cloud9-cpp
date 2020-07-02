@@ -181,29 +181,25 @@ void put_file(CloudClient *client, const std::string &src, Node dst, bool info, 
         delete[] buffer;
         throw;
     }
-    if(info) print_loading_status(done, size, start_time);
+    if (info) print_loading_status(done, size, start_time);
     delete[] buffer;
     client->fd_close(fd);
     if (info) std::cout << std::endl;
 }
 
-void
-put_node(CloudClient *client, const std::string &file, Node dst_dir, bool info, size_t block_size, bool recursive) {
+void put_node(CloudClient *client, const std::string &file, Node dst_dir, bool info, size_t block_size, bool recursive,
+              const std::string &dst_dir_path) {
     std::string name = std::filesystem::path(file).filename();
     if (std::filesystem::is_regular_file(file)) {
-        if (info)
-            std::cout << file << "\t" << "->" << "\t~" << client->get_node_owner(dst_dir)
-                      << get_node_path(client, dst_dir) << CLOUD_PATH_DIV << name << std::endl;
+        if (info) std::cout << file << "\t" << "->" << "\t" << dst_dir_path << name << std::endl;
         Node dst = client->make_node(dst_dir, name, NODE_TYPE_FILE);
         put_file(client, file, dst, info, block_size);
     } else if (std::filesystem::is_directory(file)) {
         if (recursive) {
-            if (info)
-                std::cout << "mkdir " << client->get_node_owner(dst_dir) << get_node_path(client, dst_dir)
-                          << CLOUD_PATH_DIV << name << std::endl;
+            if (info) std::cout << "mkdir " << dst_dir_path << name << std::endl;
             Node dst = client->make_node(dst_dir, name, NODE_TYPE_DIRECTORY);
             for (const auto &child : std::filesystem::directory_iterator(file)) {
-                put_node(client, child.path(), dst, info, block_size, recursive);
+                put_node(client, child.path(), dst, info, block_size, recursive, dst_dir_path + name + CLOUD_PATH_DIV);
             }
         } else std::cout << "put: non-recursive, skipping directory " << file << std::endl;
     } else {
@@ -287,13 +283,15 @@ int shell(CloudClient *client, NetConnection *connection, const std::string &log
                 }
                 std::string dst_dir_path = files.back();
                 Node dst_dir = get_path_node(client, cwd, dst_dir_path);
+                dst_dir_path = CLOUD_PATH_HOME + client->get_node_owner(dst_dir) + get_node_path(client, dst_dir) +
+                               CLOUD_PATH_DIV;
                 files.pop_back();
                 if (files.empty()) {
                     std::cerr << "put: no source files given" << std::endl;
                     return;
                 }
                 for (auto &file : files) {
-                    put_node(client, file, dst_dir, info, block_size, recursive);
+                    put_node(client, file, dst_dir, info, block_size, recursive, dst_dir_path);
                 }
             }}
     };
