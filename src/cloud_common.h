@@ -110,7 +110,7 @@ static const char CLOUD_PATH_UNKNOWN = '?';
 
 static bool is_valid_name(const std::string &name) {
     if (name.length() <= 0 || name.length() > 0xFF) return false;
-    if (name[0] == '.') return false;
+    if (name == "..") return false;
     for (char c : name) {
         if (c == CLOUD_PATH_DIV || c == CLOUD_PATH_HOME || c == CLOUD_PATH_NODE || c == CLOUD_PATH_UNKNOWN)
             return false;
@@ -258,6 +258,35 @@ static Node string2node(const std::string &s) {
         node.id[i] = d1 * 0x10 + d2;
     }
     return node;
+}
+
+static std::pair<double, std::string> human_readable_size(size_t n, size_t base = 1000) {
+    const char *prefixes = " kMGTPEZY";
+    double m = n;
+    const char *prefix = prefixes;
+    while(m > base && *(prefix + 1) != '\0') {
+        m /= double(base);
+        prefix++;
+    }
+    return {m, (prefix == prefixes) ? std::string() : std::string(1, *prefix)};
+}
+
+static std::string human_readable_time(size_t time_s){
+    std::string h = std::to_string(time_s / 3600);
+    if(h.size() < 2) h = "0" + h;
+    std::string m = std::to_string((time_s / 60) % 60);
+    if(m.size() < 2) m = "0" + m;
+    std::string s = std::to_string(time_s % 60);
+    if(s.size() < 2) s = "0" + s;
+    return h + ":" + m + ":" + s;
+}
+
+
+static size_t get_current_time_ms() {
+    return
+            std::chrono::duration_cast<std::chrono::milliseconds>(
+                    std::chrono::system_clock::now().time_since_epoch()
+            ).count();
 }
 
 #endif //CLOUD9_CLOUD_COMMON_H
