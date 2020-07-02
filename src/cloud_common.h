@@ -208,6 +208,20 @@ static std::string request_status_string(uint16_t status) {
     else return "unknown request error (" + std::to_string(status) + ")";
 }
 
+static std::string request_name(uint16_t request) {
+    if(request == REQUEST_CMD_GET_HOME) return "HOME";
+    else if(request == REQUEST_CMD_LIST_DIRECTORY ) return "LIST";
+    else if(request == REQUEST_CMD_GOODBYE ) return "TERM";
+    else if(request == REQUEST_CMD_GET_PARENT ) return "GPAR";
+    else if(request == REQUEST_CMD_MAKE_NODE ) return "MAKE";
+    else if(request == REQUEST_CMD_GET_NODE_OWNER ) return "GOWN";
+    else if(request == REQUEST_CMD_FD_OPEN ) return "FDOP";
+    else if(request == REQUEST_CMD_FD_CLOSE ) return "FDCL";
+    else if(request == REQUEST_CMD_FD_READ ) return "FDRD";
+    else if(request == REQUEST_CMD_FD_WRITE ) return "FDWR";
+    else return std::to_string(request);
+}
+
 #define NODE_ID_LENGTH 16
 
 typedef struct {

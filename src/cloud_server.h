@@ -17,6 +17,7 @@ public:
     std::string users_directory;
     std::string nodes_head_directory;
     std::string nodes_data_directory;
+    std::string access_log;
 
     CloudConfig();
 
@@ -55,6 +56,7 @@ private:
     std::mutex lock;
     std::map<Node, std::set<Session *>> readers;
     std::map<Node, Session *> writers;
+    std::ofstream access_log;
 
     void connector_routine();
 
@@ -81,6 +83,37 @@ private:
     bool node_exists(Node node);
 
     void close_fd(Session *session, Session::FileDescriptor fd);
+
+    static std::string log_pair_to_str(const std::pair<std::string, std::string>& p) {
+        return p.first + "='" + p.second + "'";
+    }
+
+    template<typename... P>
+    void log_request(Session *session, uint32_t request, P... pairs) {
+        if(config.access_log.empty()) return;
+        std::string s_pairs[] {log_pair_to_str(pairs)...};
+        access_log << session->login << "\tREQ " << request_name(request);
+        for(auto &s_p : s_pairs) access_log << " " << s_p;
+        access_log << std::endl;
+    }
+
+    template<typename... P>
+    void log_error(Session *session, uint32_t status, P... pairs) {
+        if(config.access_log.empty()) return;
+        std::string s_pairs[] {log_pair_to_str(pairs)...};
+        access_log << session->login << "\tERR '" << request_status_string(status) << "'";
+        for(auto &s_p : s_pairs) access_log << " " << s_p;
+        access_log << std::endl;
+    }
+
+    template<typename... P>
+    void log_response(Session *session, P... pairs) {
+        if(config.access_log.empty()) return;
+        std::string s_pairs[] {log_pair_to_str(pairs)...};
+        access_log << session->login << "\tANS";
+        for(auto &s_p : s_pairs) access_log << " " << s_p;
+        access_log << std::endl;
+    }
 
 public:
     CloudServer(NetServer *net, const CloudConfig &config);

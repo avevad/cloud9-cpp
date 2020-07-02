@@ -69,6 +69,7 @@ static const char *CONFIG_CHUNK_NAME = "config";
 static const char *CONFIG_OPTION_USERS_DIRECTORY = "users_directory";
 static const char *CONFIG_OPTION_NODES_HEAD_DIRECTORY = "nodes_head_directory";
 static const char *CONFIG_OPTION_NODES_DATA_DIRECTORY = "nodes_data_directory";
+static const char *CONFIG_OPTION_ACCESS_LOG = "access_log";
 static const char *CONFIG_OPTION_SERVER_PORT = "server_port";
 
 struct ConfigLoaderData {
@@ -147,6 +148,11 @@ void load_config(const char *config_file, LauncherConfig &config) {
     if (lua_isnumber(state, lua_gettop(state)))
         config.server_port = lua_tonumber(state, lua_gettop(state));
     lua_pop(state, 1);
+
+    lua_pushstring(state, CONFIG_OPTION_ACCESS_LOG);
+    lua_gettable(state, config_table);
+    if(lua_isstring(state, lua_gettop(state)))
+        config.access_log = lua_tostring(state, lua_gettop(state));
 
 #undef NO_OPTION
 
