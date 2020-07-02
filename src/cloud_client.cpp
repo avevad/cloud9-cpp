@@ -53,29 +53,33 @@ Node CloudClient::get_home() {
 }
 
 void CloudClient::list_directory(Node node, const std::function<void(std::string, Node)> &callback) {
-    std::unique_lock<std::mutex> locker(lock);
-    send_uint16(connection, REQUEST_CMD_LIST_DIRECTORY);
-    send_uint64(connection, sizeof(Node));
-    send_exact(connection, sizeof(Node), &node);
-    auto status = read_uint16(connection);
-    auto size = read_uint64(connection);
-    auto *buffer = new unsigned char[size];
-    read_exact(connection, size, buffer);
-    if (status != REQUEST_OK) {
+    std::vector<std::pair<std::string, Node>> children;
+    {
+        std::unique_lock<std::mutex> locker(lock);
+        send_uint16(connection, REQUEST_CMD_LIST_DIRECTORY);
+        send_uint64(connection, sizeof(Node));
+        send_exact(connection, sizeof(Node), &node);
+        auto status = read_uint16(connection);
+        auto size = read_uint64(connection);
+        auto *buffer = new unsigned char[size];
+        read_exact(connection, size, buffer);
+        if (status != REQUEST_OK) {
+            delete[] buffer;
+            throw CloudRequestError(status);
+        }
+        size_t offset = 0;
+        while (offset < size) {
+            Node child = *reinterpret_cast<Node *>(buffer + offset);
+            offset += sizeof(Node);
+            auto length = (size_t) *reinterpret_cast<unsigned char *>(buffer + offset);
+            offset += 1;
+            std::string name(reinterpret_cast<const char *>(buffer + offset), length);
+            offset += length;
+            children.emplace_back(name, child);
+        }
         delete[] buffer;
-        throw CloudRequestError(status);
     }
-    size_t offset = 0;
-    while (offset < size) {
-        Node child = *reinterpret_cast<Node *>(buffer + offset);
-        offset += sizeof(Node);
-        auto length = (size_t) *reinterpret_cast<unsigned char *>(buffer + offset);
-        offset += 1;
-        std::string name(reinterpret_cast<const char *>(buffer + offset), length);
-        offset += length;
-        callback(name, child);
-    }
-    delete[] buffer;
+    for (auto[name, child] : children) callback(name, child);
 }
 
 bool CloudClient::get_parent(Node node, Node *parent) {
