@@ -2,6 +2,9 @@
 #include <csignal>
 #include <vector>
 #include <map>
+#include <filesystem>
+#include <fstream>
+#include <sys/stat.h>
 #include "networking_ssl.h"
 #include "networking_tcp.h"
 #include "iostream"
@@ -112,6 +115,109 @@ std::string get_node_path(CloudClient *client, Node node) {
     }
 }
 
+#define PROGRESSBAR_SIZE 20
+
+void print_loading_status(size_t done, size_t all, size_t start_time) {
+    size_t cur_time = get_current_time_ms();
+    double seconds = double(cur_time - start_time) / 1000;
+    size_t speed = double(done) / seconds;
+    double part = (all == 0) ? 1 : (double(done) / double(all));
+    size_t segments = part * PROGRESSBAR_SIZE;
+    std::string progress = "[";
+    for (size_t i = 0; i < segments; i++) progress += "=";
+    for (size_t i = 0; i < PROGRESSBAR_SIZE - segments; i++) progress += " ";
+    progress += "]";
+    auto[done_h, done_p] = human_readable_size(done);
+    auto[all_h, all_p] = human_readable_size(all);
+    auto[speed_h, speed_p] = human_readable_size(speed);
+    std::ostringstream out;
+    out << std::fixed << std::setprecision(1);
+    out << done_h << " " << done_p << "B";
+    out << "/";
+    out << all_h << " " << all_p << "B";
+    out << " ";
+    out << progress;
+    out << " ";
+    out << (part * 100);
+    out << "% ";
+    out << speed_h << " " << speed_p << "B";
+    out << "/s ";
+    out << human_readable_time((cur_time - start_time) / 1000) << "/";
+    out << human_readable_time(all / (speed + 1));
+    std::cout << "\r\033[K\033[1F\033[1E";
+    std::cout << out.str();
+    std::cout.flush();
+}
+
+#define STATUS_DELAY 500
+
+void put_file(CloudClient *client, const std::string &src, Node dst, bool info, size_t block_size) {
+    size_t size;
+    {
+        struct stat file;
+        stat(src.c_str(), &file);
+        size = file.st_size;
+    }
+    std::ifstream stream(src);
+    auto fd = client->fd_open(dst, NODE_FD_MODE_WRITE);
+    char *buffer = new char[block_size];
+    size_t done = 0;
+    auto start_time = get_current_time_ms();
+    size_t last_status_time = start_time;
+    try {
+        while (!stream.eof()) {
+            stream.read(buffer, block_size);
+            size_t read = stream.gcount();
+            done += read;
+            client->fd_write(fd, read, buffer);
+            if (info) {
+                if (get_current_time_ms() - last_status_time > STATUS_DELAY) {
+                    print_loading_status(done, size, start_time);
+                    last_status_time = get_current_time_ms();
+                }
+            }
+        }
+    } catch (...) {
+        delete[] buffer;
+        throw;
+    }
+    if(info) print_loading_status(done, size, start_time);
+    delete[] buffer;
+    client->fd_close(fd);
+    if (info) std::cout << std::endl;
+}
+
+void
+put_node(CloudClient *client, const std::string &file, Node dst_dir, bool info, size_t block_size, bool recursive) {
+    std::string name = std::filesystem::path(file).filename();
+    if (std::filesystem::is_regular_file(file)) {
+        if (info)
+            std::cout << file << "\t" << "->" << "\t~" << client->get_node_owner(dst_dir)
+                      << get_node_path(client, dst_dir) << CLOUD_PATH_DIV << name << std::endl;
+        client->make_node(dst_dir, name, NODE_TYPE_FILE);
+        Node dst;
+        client->list_directory(dst_dir, [&dst, &name](const std::string &child_name, Node child) {
+            if (child_name == name) dst = child;
+        });
+        put_file(client, file, dst, info, block_size);
+    } else if (std::filesystem::is_directory(file)) {
+        if (recursive) {
+            if (info)
+                std::cout << "mkdir " << client->get_node_owner(dst_dir) << get_node_path(client, dst_dir)
+                          << CLOUD_PATH_DIV << name << std::endl;
+            client->make_node(dst_dir, name, NODE_TYPE_DIRECTORY);
+            Node dst;
+            client->list_directory(dst_dir, [&dst, &name](const std::string &child_name, Node child) {
+                if (child_name == name) dst = child;
+            });
+            for (const auto &child : std::filesystem::directory_iterator(file)) {
+                put_node(client, child.path(), dst, info, block_size, recursive);
+            }
+        } else std::cout << "put: non-recursive, skipping directory " << file << std::endl;
+    } else {
+        std::cout << "put: skipping other file " << file << std::endl;
+    }
+}
 
 int shell(CloudClient *client, NetConnection *connection, const std::string &login, const std::string &host) {
     const std::map<std::string, void (*)(CloudClient *, Node &, std::vector<std::string> &)> commands{
@@ -162,6 +268,41 @@ int shell(CloudClient *client, NetConnection *connection, const std::string &log
                     std::string result = node2string(get_path_node(client, cwd, args[0]));
                     std::cout << "#" << result << std::endl;
                 } else std::cerr << "node: too many arguments" << std::endl;
+            }},
+            {"put",   [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
+                std::vector<std::string> options;
+                std::vector<std::string> files;
+                for (auto &arg : args) {
+                    if (arg.starts_with("-")) options.push_back(arg.substr(1));
+                    else files.push_back(arg);
+                }
+                bool info = true;
+                size_t block_size = 1024 * 1024 * 4; // 4 MiB
+                bool recursive = false;
+                for (auto &option : options) {
+                    if (option == "s") info = false;
+                    else if (option == "r") recursive = true;
+                    else if (option.starts_with("b=")) {
+                        block_size = std::stoll(option.substr(2));
+                    } else {
+                        std::cerr << "put: unknown option " << option << std::endl;
+                        return;
+                    }
+                }
+                if (files.empty()) {
+                    std::cerr << "put: no destination directory specified" << std::endl;
+                    return;
+                }
+                std::string dst_dir_path = files.back();
+                Node dst_dir = get_path_node(client, cwd, dst_dir_path);
+                files.pop_back();
+                if (files.empty()) {
+                    std::cerr << "put: no source files given" << std::endl;
+                    return;
+                }
+                for (auto &file : files) {
+                    put_node(client, file, dst_dir, info, block_size, recursive);
+                }
             }}
     };
     Node cwd = client->get_home(login);
