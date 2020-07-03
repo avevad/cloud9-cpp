@@ -152,12 +152,7 @@ void print_loading_status(size_t done, size_t all, size_t start_time) {
 #define STATUS_DELAY 500
 
 void put_file(CloudClient *client, const std::string &src, Node dst, bool info, size_t block_size) {
-    size_t size;
-    {
-        struct stat file;
-        stat(src.c_str(), &file);
-        size = file.st_size;
-    }
+    size_t size = std::filesystem::file_size(src);
     std::ifstream stream(src);
     auto fd = client->fd_open(dst, NODE_FD_MODE_WRITE);
     char *buffer = new char[block_size];
@@ -189,9 +184,9 @@ void put_file(CloudClient *client, const std::string &src, Node dst, bool info, 
 
 void put_node(CloudClient *client, const std::string &file, Node dst_dir, bool info, size_t block_size, bool recursive,
               const std::string &dst_dir_path) {
-    std::string name = std::filesystem::path(file).filename();
+    std::string name = std::filesystem::absolute(std::filesystem::path(file)).filename();
     if (std::filesystem::is_regular_file(file)) {
-        if (info) std::cout << file << "\t" << "->" << "\t" << dst_dir_path << name << std::endl;
+        if (info) std::cout << file << "\t-->\t" << dst_dir_path << name << std::endl;
         Node dst = client->make_node(dst_dir, name, NODE_TYPE_FILE);
         put_file(client, file, dst, info, block_size);
     } else if (std::filesystem::is_directory(file)) {
@@ -207,9 +202,63 @@ void put_node(CloudClient *client, const std::string &file, Node dst_dir, bool i
     }
 }
 
+void get_file(CloudClient *client, Node src, const std::string &dst, bool info, size_t block_size) {
+    NodeInfo node_info = client->get_node_info(src);
+    std::ofstream stream(dst);
+    auto fd = client->fd_open(src, NODE_FD_MODE_READ);
+    char *buffer = new char[block_size];
+    size_t done = 0;
+    auto start_time = get_current_time_ms();
+    size_t last_status_time = start_time;
+    try {
+        while (true) {
+            auto read = client->fd_read(fd, block_size, buffer);
+            done += read;
+            stream.write(buffer, read);
+            if (info) {
+                if (get_current_time_ms() - last_status_time > STATUS_DELAY) {
+                    print_loading_status(done, node_info.size, start_time);
+                    last_status_time = get_current_time_ms();
+                }
+            }
+        }
+    } catch (CloudRequestError &error) {
+        if (error.status != REQUEST_ERR_END_OF_FILE) {
+            delete[] buffer;
+            throw;
+        }
+    } catch (...) {
+        delete[] buffer;
+        throw;
+    }
+    if (info) print_loading_status(done, node_info.size, start_time);
+    delete[] buffer;
+    client->fd_close(fd);
+    if (info) std::cout << std::endl;
+}
+
+void get_node(CloudClient *client, Node node, const std::string &dst_dir, bool info, size_t block_size, bool recursive,
+              const std::string &node_path, const std::string &node_name) {
+    NodeInfo node_info = client->get_node_info(node);
+    if (node_info.type == NODE_TYPE_FILE) {
+        if (info) std::cout << dst_dir << node_name << "\t<--\t" << node_path << std::endl;
+        if (std::filesystem::exists(dst_dir + node_name)) throw std::runtime_error("file exists");
+        get_file(client, node, dst_dir + node_name, info, block_size);
+    } else if (node_info.type == NODE_TYPE_DIRECTORY) {
+        if (recursive) {
+            if (info) std::cout << "mkdir " << dst_dir << node_name;
+            std::filesystem::create_directory(dst_dir + node_name);
+            client->list_directory(node, [=](const std::string &child_name, Node child) {
+                get_node(client, child, dst_dir + node_name + PATH_DIV, info, block_size, recursive,
+                         node_path + CLOUD_PATH_DIV + child_name, child_name);
+            });
+        } else std::cout << "get: non-recursive, skipping directory " << node_path << std::endl;
+    }
+}
+
 int shell(CloudClient *client, NetConnection *connection, const std::string &login, const std::string &host) {
     const std::map<std::string, void (*)(CloudClient *, Node &, std::vector<std::string> &)> commands{
-            {"ls",    [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
+            {"ls",  [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
                 if (args.size() > 1) {
                     std::cerr << "ls: too many arguments" << std::endl;
                     return;
@@ -222,7 +271,7 @@ int shell(CloudClient *client, NetConnection *connection, const std::string &log
                     std::cout << name << std::endl;
                 });
             }},
-            {"cd",    [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
+            {"cd",  [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
                 if (args.empty()) {
                     cwd = client->get_home();
                 } else if (args.size() == 1) {
@@ -257,7 +306,7 @@ int shell(CloudClient *client, NetConnection *connection, const std::string &log
                     std::cout << "#" << result << std::endl;
                 } else std::cerr << "node: too many arguments" << std::endl;
             }},
-            {"put",   [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
+            {"put", [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
                 std::vector<std::string> options;
                 std::vector<std::string> files;
                 for (auto &arg : args) {
@@ -265,7 +314,7 @@ int shell(CloudClient *client, NetConnection *connection, const std::string &log
                     else files.push_back(arg);
                 }
                 bool info = true;
-                size_t block_size = 1024 * 1024 * 4; // 4 MiB
+                size_t block_size = 1024 * 1024; // 1 MiB
                 bool recursive = false;
                 for (auto &option : options) {
                     if (option == "s") info = false;
@@ -292,6 +341,45 @@ int shell(CloudClient *client, NetConnection *connection, const std::string &log
                 }
                 for (auto &file : files) {
                     put_node(client, file, dst_dir, info, block_size, recursive, dst_dir_path);
+                }
+            }},
+            {"get", [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
+                std::vector<std::string> options;
+                std::vector<std::string> files;
+                for (auto &arg : args) {
+                    if (arg.starts_with("-")) options.push_back(arg.substr(1));
+                    else files.push_back(arg);
+                }
+                bool info = true;
+                size_t block_size = 1024 * 1024; // 1 MiB
+                bool recursive = false;
+                for (auto &option : options) {
+                    if (option == "s") info = false;
+                    else if (option == "r") recursive = true;
+                    else if (option.starts_with("b=")) {
+                        block_size = std::stoll(option.substr(2));
+                    } else {
+                        std::cerr << "get: unknown option " << option << std::endl;
+                        return;
+                    }
+                }
+                if (files.empty()) {
+                    std::cerr << "get: no destination directory specified" << std::endl;
+                    return;
+                }
+                std::string dst_dir = files.back();
+                files.pop_back();
+                if (files.empty()) {
+                    std::cerr << "get: no source files given" << std::endl;
+                    return;
+                }
+                for (auto &file : files) {
+                    Node node = get_path_node(client, cwd, file);
+                    std::string path = get_node_path(client, node);
+                    std::string name;
+                    if (path.size() <= 1) name = client->get_node_owner(node);
+                    else name = path.substr(std::find(path.begin(), path.end(), CLOUD_PATH_DIV) - path.begin() + 1);
+                    get_node(client, node, dst_dir + PATH_DIV, info, block_size, recursive, path, name);
                 }
             }}
     };
