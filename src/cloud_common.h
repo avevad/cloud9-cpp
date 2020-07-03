@@ -81,15 +81,21 @@ static void send_uint64(NetConnection *connection, uint64_t n) {
     send_exact(connection, 8, &buffer);
 }
 
-static uint64_t read_uint64(NetConnection *connection) {
-    uint8_t buffer[8];
-    read_exact(connection, 8, &buffer);
+static uint64_t buf_read_uint64(void *buffer) {
+    auto *r_buffer = reinterpret_cast<uint8_t *>(buffer);
     uint64_t n = 0;
-    for (uint8_t e : buffer) {
+    for (size_t i = 0; i < sizeof(uint64_t); i++) {
+        uint8_t e = r_buffer[i];
         n <<= uint64_t(8);
         n |= uint64_t(e);
     }
     return n;
+}
+
+static uint64_t read_uint64(NetConnection *connection) {
+    uint8_t buffer[8];
+    read_exact(connection, 8, &buffer);
+    return buf_read_uint64(&buffer);
 }
 
 static const char *LOGIN_CHARSET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_";
@@ -142,6 +148,7 @@ static const uint16_t REQUEST_CMD_FD_OPEN = 7;
 static const uint16_t REQUEST_CMD_FD_CLOSE = 8;
 static const uint16_t REQUEST_CMD_FD_READ = 9;
 static const uint16_t REQUEST_CMD_FD_WRITE = 10;
+static const uint16_t REQUEST_CMD_GET_NODE_INFO = 11;
 static const uint16_t REQUEST_OK = 0;
 static const uint16_t REQUEST_ERR_BODY_TOO_LARGE = 1;
 static const uint16_t REQUEST_ERR_INVALID_CMD = 2;
@@ -219,6 +226,7 @@ static std::string request_name(uint16_t request) {
     else if (request == REQUEST_CMD_FD_CLOSE) return "FDCL";
     else if (request == REQUEST_CMD_FD_READ) return "FDRD";
     else if (request == REQUEST_CMD_FD_WRITE) return "FDWR";
+    else if (request == REQUEST_CMD_GET_NODE_INFO) return "NINF";
     else return std::to_string(request);
 }
 

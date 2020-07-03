@@ -494,6 +494,38 @@ void CloudServer::listener_routine(Session *session) {
                         delete[] buffer;
                     }
                 }
+            } else if (cmd == REQUEST_CMD_GET_NODE_INFO) {
+                if (size != sizeof(Node)) {
+                    log_request(session, cmd);
+                    log_error(session, REQUEST_ERR_MALFORMED_CMD);
+                    send_uint16(session->connection, REQUEST_ERR_MALFORMED_CMD);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                Node node = *reinterpret_cast<Node *>(body);
+                log_request(session, cmd, std::pair("node", node2string(node)));
+                if (!node_exists(node)) {
+                    log_error(session, REQUEST_ERR_NOT_FOUND);
+                    send_uint16(session->connection, REQUEST_ERR_NOT_FOUND);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                if (!get_user_rights(node, session->login).read) {
+                    log_error(session, REQUEST_ERR_FORBIDDEN);
+                    send_uint16(session->connection, REQUEST_ERR_FORBIDDEN);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                auto[node_head, node_size] = get_node_head(node);
+                uint8_t file_type = *reinterpret_cast<uint8_t *>(node_head + NODE_HEAD_OFFSET_TYPE);
+                delete[] node_head;
+                uint64_t file_size = std::filesystem::file_size(get_node_data_path(node));
+                log_response(session, std::pair("type", std::to_string(file_type)),
+                             std::pair("size", std::to_string(file_size)));
+                send_uint16(session->connection, REQUEST_OK);
+                send_uint64(session->connection, sizeof(uint8_t) + sizeof(uint64_t));
+                send_uint8(session->connection, file_type);
+                send_uint64(session->connection, file_size);
             } else {
                 log_request(session, cmd);
                 log_error(session, REQUEST_ERR_INVALID_CMD);

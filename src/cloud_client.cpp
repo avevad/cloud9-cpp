@@ -211,6 +211,29 @@ uint32_t CloudClient::fd_read(uint8_t fd, uint32_t n, void *bytes) {
     return size;
 }
 
+NodeInfo CloudClient::get_node_info(Node node) {
+    std::unique_lock<std::mutex> locker(lock);
+    send_uint16(connection, REQUEST_CMD_GET_NODE_INFO);
+    send_uint64(connection, sizeof(Node));
+    send_exact(connection, sizeof(Node), &node);
+    auto status = read_uint16(connection);
+    auto size = read_uint64(connection);
+    auto *buffer = new char[size];
+    read_exact(connection, size, buffer);
+    if (status != REQUEST_OK) {
+        delete[] buffer;
+        throw CloudRequestError(status);
+    }
+    NodeInfo node_info;
+    char *p = buffer;
+    node_info.type = *reinterpret_cast<uint8_t *>(p);
+    p += sizeof(uint8_t);
+    node_info.size = buf_read_uint64(p);
+    p += sizeof(uint64_t);
+    delete[] buffer;
+    return node_info;
+}
+
 CloudRequestError::CloudRequestError(uint16_t status, std::string info) : desc(
         info.empty() ? request_status_string(status) : (request_status_string(status) + " (" + info + ")")),
                                                                           status(status), info(std::move(info)) {

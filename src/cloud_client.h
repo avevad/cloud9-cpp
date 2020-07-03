@@ -7,6 +7,10 @@
 #include "networking.h"
 #include "cloud_common.h"
 
+typedef struct {
+    uint8_t type;
+    uint64_t size;
+} NodeInfo;
 
 class CloudClient final {
 private:
@@ -36,6 +40,8 @@ public:
     uint32_t fd_read(uint8_t fd, uint32_t n, void *bytes);
 
     void fd_write(uint8_t fd, uint32_t n, const void *bytes);
+
+    NodeInfo get_node_info(Node node);
 };
 
 class CloudInitError : public std::exception {
