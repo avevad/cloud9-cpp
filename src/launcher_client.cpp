@@ -246,7 +246,7 @@ void get_node(CloudClient *client, Node node, const std::string &dst_dir, bool i
         get_file(client, node, dst_dir + node_name, info, block_size);
     } else if (node_info.type == NODE_TYPE_DIRECTORY) {
         if (recursive) {
-            if (info) std::cout << "mkdir " << dst_dir << node_name;
+            if (info) std::cout << "mkdir " << dst_dir << node_name << std::endl;
             std::filesystem::create_directory(dst_dir + node_name);
             client->list_directory(node, [=](const std::string &child_name, Node child) {
                 get_node(client, child, dst_dir + node_name + PATH_DIV, info, block_size, recursive,
