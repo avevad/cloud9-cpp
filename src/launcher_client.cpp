@@ -289,12 +289,12 @@ int shell(CloudClient *client, NetConnection *connection, const std::string &log
                 if (args.empty()) std::cerr << "mkdir: not enough arguments" << std::endl;
                 else if (args.size() == 1) {
                     std::string path = args[0];
-                    auto iter = std::find(path.begin(), path.end(), CLOUD_PATH_DIV);
+                    auto i = path.find_last_of(CLOUD_PATH_DIV);
                     Node parent = cwd;
                     std::string name = path;
-                    if (iter != path.end()) {
-                        parent = get_path_node(client, cwd, path.substr(0, iter - path.begin()));
-                        name = path.substr(iter - name.begin() + 1);
+                    if (i != std::string::npos) {
+                        parent = get_path_node(client, cwd, path.substr(0, i));
+                        name = path.substr(i + 1);
                     }
                     client->make_node(parent, name, NODE_TYPE_DIRECTORY);
                 } else std::cerr << "mkdir: too many arguments" << std::endl;
@@ -378,7 +378,7 @@ int shell(CloudClient *client, NetConnection *connection, const std::string &log
                     std::string path = get_node_path(client, node);
                     std::string name;
                     if (path.size() <= 1) name = client->get_node_owner(node);
-                    else name = path.substr(std::find(path.begin(), path.end(), CLOUD_PATH_DIV) - path.begin() + 1);
+                    else name = path.substr(path.find_last_of(CLOUD_PATH_DIV) + 1);
                     get_node(client, node, dst_dir + PATH_DIV, info, block_size, recursive, path, name);
                 }
             }}
