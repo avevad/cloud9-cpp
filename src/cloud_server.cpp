@@ -157,7 +157,7 @@ void CloudServer::listener_routine(Session *session) {
                 std::ifstream node_data_file(get_node_data_path(node));
                 std::string node_data((std::istreambuf_iterator<char>(node_data_file)),
                                       std::istreambuf_iterator<char>());
-                log_response(session);
+                log_response(session, std::pair("dir_node_size", std::to_string(node_data.length())));
                 send_uint16(session->connection, REQUEST_OK);
                 send_uint64(session->connection, node_data.size());
                 send_exact(session->connection, node_data.size(), node_data.c_str());
@@ -196,7 +196,8 @@ void CloudServer::listener_routine(Session *session) {
                     send_uint64(session->connection, sizeof(Node));
                     send_exact(session->connection, sizeof(Node), &parent);
                 } else {
-                    log_error(session, error);
+                    if (error != REQUEST_OK) log_error(session, error);
+                    else log_response(session, std::pair("parent", ""));
                     send_uint16(session->connection, error);
                     send_uint64(session->connection, 0);
                 }
@@ -218,7 +219,9 @@ void CloudServer::listener_routine(Session *session) {
                 }
                 uint8_t type = body[size - 1];
                 std::string name(body + sizeof(Node) + 1, name_len);
-                log_request(session, cmd, std::pair("name", name), std::pair("type", std::to_string(type)));
+                Node parent = *reinterpret_cast<Node *>(body);
+                log_request(session, cmd, std::pair("name", name), std::pair("type", std::to_string(type)),
+                            std::pair("parent", node2string(parent)));
                 if (!is_valid_name(name)) {
                     log_error(session, REQUEST_ERR_INVALID_NAME);
                     send_uint16(session->connection, REQUEST_ERR_INVALID_NAME);
@@ -231,7 +234,6 @@ void CloudServer::listener_routine(Session *session) {
                     send_uint64(session->connection, 0);
                     continue;
                 }
-                Node parent = *reinterpret_cast<Node *>(body);
                 auto[parent_head, parent_head_size] = get_node_head(parent);
                 if (!parent_head) {
                     log_error(session, REQUEST_ERR_NOT_FOUND);
