@@ -379,7 +379,8 @@ int shell(CloudClient *client, NetConnection *connection, const std::string &log
                     std::string name;
                     if (path.size() <= 1) name = client->get_node_owner(node);
                     else name = path.substr(path.find_last_of(CLOUD_PATH_DIV) + 1);
-                    get_node(client, node, dst_dir + PATH_DIV, info, block_size, recursive, path, name);
+                    get_node(client, node, dst_dir + PATH_DIV, info, block_size, recursive,
+                             CLOUD_PATH_HOME + client->get_node_owner(node) + path, name);
                 }
             }}
     };

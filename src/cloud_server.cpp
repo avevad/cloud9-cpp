@@ -92,9 +92,11 @@ void CloudServer::listener_routine(Session *session) {
     bool goodbye = false;
     try {
         while (true) {
+            auto id = read_uint32(session->connection);
             auto cmd = read_uint16(session->connection);
             auto size = read_uint64(session->connection);
             if (size > REQUEST_BODY_MAX_SIZE) {
+                send_uint32(session->connection, id);
                 send_uint16(session->connection, REQUEST_ERR_BODY_TOO_LARGE);
                 send_uint64(session->connection, 0);
                 throw std::runtime_error(request_status_string(REQUEST_ERR_BODY_TOO_LARGE));
@@ -102,7 +104,9 @@ void CloudServer::listener_routine(Session *session) {
             delete[] body;
             body = new char[size];
             read_exact(session->connection, size, body);
-            std::unique_lock locker(lock);
+            std::unique_lock global_locker(lock);
+            std::unique_lock session_locker(session->lock);
+            send_uint32(session->connection, id);
             if (cmd == REQUEST_CMD_GET_HOME) {
                 std::string user = size == 0 ? session->login : std::string(body, size);
                 log_request(session, cmd, std::pair("user", user));

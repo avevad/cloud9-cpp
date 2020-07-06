@@ -4,6 +4,9 @@
 #include <string>
 #include <mutex>
 #include <functional>
+#include <thread>
+#include <condition_variable>
+#include <map>
 #include "networking.h"
 #include "cloud_common.h"
 
@@ -14,16 +17,25 @@ typedef struct {
 
 class CloudClient final {
 private:
+    struct ServerResponse {
+        uint16_t status = 0;
+        uint64_t size = 0;
+        char *body = nullptr;
+    };
     NetConnection *const connection;
-    std::mutex lock;
+    std::mutex api_lock;
+    std::thread listener;
+    std::condition_variable response_notifier;
+    std::map<uint32_t, ServerResponse> responses;
+    uint32_t current_id = 0;
+    bool shutting_down = false;
+    bool connected = true;
 public:
     CloudClient(NetConnection *net, const std::string &login, std::string (*password_callback)(void *), void *ud);
 
     ~CloudClient();
 
-    Node get_home(const std::string &user);
-
-    Node get_home();
+    Node get_home(const std::string &user = "");
 
     void list_directory(Node node, const std::function<void(std::string, Node)> &callback);
 
@@ -42,6 +54,10 @@ public:
     void fd_write(uint8_t fd, uint32_t n, const void *bytes);
 
     NodeInfo get_node_info(Node node);
+
+    void listener_routine();
+
+    ServerResponse wait_response(uint32_t id, std::unique_lock<std::mutex> &locker);
 };
 
 class CloudInitError : public std::exception {

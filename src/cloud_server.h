@@ -42,6 +42,7 @@ private:
         NetConnection *const connection;
         std::string login;
         std::vector<FileDescriptor> fds;
+        std::mutex lock;
 
         explicit Session(NetConnection *connection);
     };
@@ -89,7 +90,7 @@ private:
     }
 
     template<typename... P>
-    void log_request(Session *session, uint32_t request, P... pairs) {
+    void log_request(Session *session, uint16_t request, P... pairs) {
         if (config.access_log.empty()) return;
         std::string s_pairs[]{log_pair_to_str(pairs)...};
         access_log << session->login << "\tREQ " << request_name(request);
@@ -98,7 +99,7 @@ private:
     }
 
     template<typename... P>
-    void log_error(Session *session, uint32_t status, P... pairs) {
+    void log_error(Session *session, uint16_t status, P... pairs) {
         if (config.access_log.empty()) return;
         std::string s_pairs[]{log_pair_to_str(pairs)...};
         access_log << session->login << "\tERR '" << request_status_string(status) << "'";

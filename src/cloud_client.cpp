@@ -16,222 +16,228 @@ CloudClient::CloudClient(NetConnection *net, const std::string &login, std::stri
     if (status != INIT_OK) {
         throw CloudInitError(status);
     }
+    listener = std::thread([this]() { listener_routine(); });
 }
 
 CloudClient::~CloudClient() {
-    try {
-        std::unique_lock<std::mutex> locker(lock);
-        send_uint16(connection, REQUEST_CMD_GOODBYE);
-        send_uint64(connection, 0);
-    } catch (std::exception &exception) {}
+    if (connected) {
+        try {
+            connection->close();
+            if (listener.joinable()) listener.join();
+            std::unique_lock<std::mutex> locker(api_lock);
+            send_uint32(connection, current_id);
+            send_uint16(connection, REQUEST_CMD_GOODBYE);
+            send_uint64(connection, 0);
+        } catch (std::exception &exception) {}
+    }
 }
 
 Node CloudClient::get_home(const std::string &user) {
-    std::unique_lock<std::mutex> locker(lock);
+    std::unique_lock<std::mutex> locker(api_lock);
+    send_uint32(connection, current_id);
     send_uint16(connection, REQUEST_CMD_GET_HOME);
     send_uint64(connection, user.size());
     send_exact(connection, user.size(), user.c_str());
-    auto status = read_uint16(connection);
-    auto size = read_uint64(connection);
-    auto *buffer = new unsigned char[size];
-    read_exact(connection, size, buffer);
-    if (status != REQUEST_OK) {
-        delete[] buffer;
-        throw CloudRequestError(status);
+    ServerResponse response = wait_response(current_id++, locker);
+    if (response.status != REQUEST_OK) {
+        delete[] response.body;
+        throw CloudRequestError(response.status);
     }
-    if (size != sizeof(Node)) {
-        delete[] buffer;
-        throw std::runtime_error("server error");
-    }
-    Node node = *reinterpret_cast<Node *>(buffer);
-    delete[] buffer;
+    Node node = *reinterpret_cast<Node *>(response.body);
+    delete[] response.body;
     return node;
-}
-
-Node CloudClient::get_home() {
-    return get_home("");
 }
 
 void CloudClient::list_directory(Node node, const std::function<void(std::string, Node)> &callback) {
     std::vector<std::pair<std::string, Node>> children;
     {
-        std::unique_lock<std::mutex> locker(lock);
+        std::unique_lock<std::mutex> locker(api_lock);
+        send_uint32(connection, current_id);
         send_uint16(connection, REQUEST_CMD_LIST_DIRECTORY);
         send_uint64(connection, sizeof(Node));
         send_exact(connection, sizeof(Node), &node);
-        auto status = read_uint16(connection);
-        auto size = read_uint64(connection);
-        auto *buffer = new unsigned char[size];
-        read_exact(connection, size, buffer);
-        if (status != REQUEST_OK) {
-            delete[] buffer;
-            throw CloudRequestError(status);
+        ServerResponse response = wait_response(current_id++, locker);
+        if (response.status != REQUEST_OK) {
+            delete[] response.body;
+            throw CloudRequestError(response.status);
         }
         size_t offset = 0;
-        while (offset < size) {
-            Node child = *reinterpret_cast<Node *>(buffer + offset);
+        while (offset < response.size) {
+            Node child = *reinterpret_cast<Node *>(response.body + offset);
             offset += sizeof(Node);
-            auto length = (size_t) *reinterpret_cast<unsigned char *>(buffer + offset);
+            auto length = (size_t) *reinterpret_cast<unsigned char *>(response.body + offset);
             offset += 1;
-            std::string name(reinterpret_cast<const char *>(buffer + offset), length);
+            std::string name(reinterpret_cast<const char *>(response.body + offset), length);
             offset += length;
             children.emplace_back(name, child);
         }
-        delete[] buffer;
+        delete[] response.body;
     }
     for (auto[name, child] : children) callback(name, child);
 }
 
 bool CloudClient::get_parent(Node node, Node *parent) {
-    std::unique_lock<std::mutex> locker(lock);
+    std::unique_lock<std::mutex> locker(api_lock);
+    send_uint32(connection, current_id);
     send_uint16(connection, REQUEST_CMD_GET_PARENT);
     send_uint64(connection, sizeof(Node));
     send_exact(connection, sizeof(Node), &node);
-    auto status = read_uint16(connection);
-    auto size = read_uint64(connection);
-    auto *buffer = new unsigned char[size];
-    read_exact(connection, size, buffer);
-    if (status != REQUEST_OK) {
-        delete[] buffer;
-        throw CloudRequestError(status);
+    ServerResponse response = wait_response(current_id++, locker);
+    if (response.status != REQUEST_OK) {
+        delete[] response.body;
+        throw CloudRequestError(response.status);
     }
-    bool result = size == sizeof(Node);
-    if (result && parent) *parent = *reinterpret_cast<Node *>(buffer);
-    delete[] buffer;
+    bool result = response.size == sizeof(Node);
+    if (result && parent) *parent = *reinterpret_cast<Node *>(response.body);
+    delete[] response.body;
     return result;
 }
 
 Node CloudClient::make_node(Node parent, const std::string &name, uint8_t type) {
-    std::unique_lock<std::mutex> locker(lock);
+    std::unique_lock<std::mutex> locker(api_lock);
+    send_uint32(connection, current_id);
     send_uint16(connection, REQUEST_CMD_MAKE_NODE);
     send_uint64(connection, sizeof(Node) + 1 + name.length() + 1);
     send_exact(connection, sizeof(Node), &parent);
     send_uint8(connection, name.length());
     send_exact(connection, name.length(), name.c_str());
     send_uint8(connection, type);
-    auto status = read_uint16(connection);
-    auto size = read_uint64(connection);
-    auto *buffer = new unsigned char[size];
-    read_exact(connection, size, buffer);
-    if (status != REQUEST_OK) {
-        delete[] buffer;
-        throw CloudRequestError(status);
+    ServerResponse response = wait_response(current_id++, locker);
+    if (response.status != REQUEST_OK) {
+        delete[] response.body;
+        throw CloudRequestError(response.status);
     }
-    Node node = *reinterpret_cast<Node *>(buffer);
-    delete[] buffer;
+    Node node = *reinterpret_cast<Node *>(response.body);
+    delete[] response.body;
     return node;
 }
 
 std::string CloudClient::get_node_owner(Node node) {
-    std::unique_lock<std::mutex> locker(lock);
+    std::unique_lock<std::mutex> locker(api_lock);
+    send_uint32(connection, current_id);
     send_uint16(connection, REQUEST_CMD_GET_NODE_OWNER);
     send_uint64(connection, sizeof(Node));
     send_exact(connection, sizeof(Node), &node);
-    auto status = read_uint16(connection);
-    auto size = read_uint64(connection);
-    auto *buffer = new char[size];
-    read_exact(connection, size, buffer);
-    if (status != REQUEST_OK) {
-        delete[] buffer;
-        throw CloudRequestError(status);
+    ServerResponse response = wait_response(current_id++, locker);
+    if (response.status != REQUEST_OK) {
+        delete[] response.body;
+        throw CloudRequestError(response.status);
     }
-    std::string owner(buffer, size);
-    delete[] buffer;
+    std::string owner(response.body, response.size);
+    delete[] response.body;
     return owner;
 }
 
 uint8_t CloudClient::fd_open(Node node, uint8_t mode) {
-    std::unique_lock<std::mutex> locker(lock);
+    std::unique_lock<std::mutex> locker(api_lock);
+    send_uint32(connection, current_id);
     send_uint16(connection, REQUEST_CMD_FD_OPEN);
     send_uint64(connection, sizeof(Node) + 1);
     send_exact(connection, sizeof(Node), &node);
     send_uint8(connection, mode);
-    auto status = read_uint16(connection);
-    auto size = read_uint64(connection);
-    auto *buffer = new char[size];
-    read_exact(connection, size, buffer);
-    if (status != REQUEST_OK) {
-        delete[] buffer;
-        throw CloudRequestError(status);
+    ServerResponse response = wait_response(current_id++, locker);
+    if (response.status != REQUEST_OK) {
+        delete[] response.body;
+        throw CloudRequestError(response.status);
     }
-    uint8_t fd = *reinterpret_cast<uint8_t *>(buffer);
-    delete[] buffer;
+    uint8_t fd = *reinterpret_cast<uint8_t *>(response.body);
+    delete[] response.body;
     return fd;
 }
 
 void CloudClient::fd_close(uint8_t fd) {
-    std::unique_lock<std::mutex> locker(lock);
+    std::unique_lock<std::mutex> locker(api_lock);
+    send_uint32(connection, current_id);
     send_uint16(connection, REQUEST_CMD_FD_CLOSE);
     send_uint64(connection, 1);
     send_uint8(connection, fd);
-    auto status = read_uint16(connection);
-    auto size = read_uint64(connection);
-    auto *buffer = new char[size];
-    read_exact(connection, size, buffer);
-    if (status != REQUEST_OK) {
-        delete[] buffer;
-        throw CloudRequestError(status);
+    ServerResponse response = wait_response(current_id++, locker);
+    if (response.status != REQUEST_OK) {
+        delete[] response.body;
+        throw CloudRequestError(response.status);
     }
-    delete[] buffer;
+    delete[] response.body;
 }
 
 void CloudClient::fd_write(uint8_t fd, uint32_t n, const void *bytes) {
-    std::unique_lock<std::mutex> locker(lock);
+    std::unique_lock<std::mutex> locker(api_lock);
+    send_uint32(connection, current_id);
     send_uint16(connection, REQUEST_CMD_FD_WRITE);
     send_uint64(connection, 1 + n);
     send_uint8(connection, fd);
     send_exact(connection, n, bytes);
-    auto status = read_uint16(connection);
-    auto size = read_uint64(connection);
-    auto *buffer = new char[size];
-    read_exact(connection, size, buffer);
-    if (status != REQUEST_OK) {
-        delete[] buffer;
-        throw CloudRequestError(status);
+    ServerResponse response = wait_response(current_id++, locker);
+    if (response.status != REQUEST_OK) {
+        delete[] response.body;
+        throw CloudRequestError(response.status);
     }
-    delete[] buffer;
+    delete[] response.body;
 }
 
 uint32_t CloudClient::fd_read(uint8_t fd, uint32_t n, void *bytes) {
-    std::unique_lock<std::mutex> locker(lock);
+    std::unique_lock<std::mutex> locker(api_lock);
+    send_uint32(connection, current_id);
     send_uint16(connection, REQUEST_CMD_FD_READ);
     send_uint64(connection, 1 + sizeof(uint32_t));
     send_uint8(connection, fd);
     send_uint32(connection, n);
-    auto status = read_uint16(connection);
-    auto size = read_uint64(connection);
-    auto *buffer = new char[size];
-    read_exact(connection, size, buffer);
-    if (status != REQUEST_OK) {
-        delete[] buffer;
-        throw CloudRequestError(status);
+    ServerResponse response = wait_response(current_id++, locker);
+    if (response.status != REQUEST_OK) {
+        delete[] response.body;
+        throw CloudRequestError(response.status);
     }
-    std::memcpy(bytes, buffer, size);
-    delete[] buffer;
-    return size;
+    std::memcpy(bytes, response.body, response.size);
+    delete[] response.body;
+    return response.size;
 }
 
 NodeInfo CloudClient::get_node_info(Node node) {
-    std::unique_lock<std::mutex> locker(lock);
+    std::unique_lock<std::mutex> locker(api_lock);
+    send_uint32(connection, current_id);
     send_uint16(connection, REQUEST_CMD_GET_NODE_INFO);
     send_uint64(connection, sizeof(Node));
     send_exact(connection, sizeof(Node), &node);
-    auto status = read_uint16(connection);
-    auto size = read_uint64(connection);
-    auto *buffer = new char[size];
-    read_exact(connection, size, buffer);
-    if (status != REQUEST_OK) {
-        delete[] buffer;
-        throw CloudRequestError(status);
+    ServerResponse response = wait_response(current_id++, locker);
+    if (response.status != REQUEST_OK) {
+        delete[] response.body;
+        throw CloudRequestError(response.status);
     }
     NodeInfo node_info;
-    char *p = buffer;
+    char *p = response.body;
     node_info.type = *reinterpret_cast<uint8_t *>(p);
     p += sizeof(uint8_t);
     node_info.size = buf_read_uint64(p);
     p += sizeof(uint64_t);
-    delete[] buffer;
+    delete[] response.body;
     return node_info;
+}
+
+void CloudClient::listener_routine() {
+    ServerResponse response;
+    try {
+        while (true) {
+            response = ServerResponse();
+            uint32_t id = read_uint32(connection);
+            response.status = read_uint16(connection);
+            response.size = read_uint64(connection);
+            response.body = new char[response.size];
+            read_exact(connection, response.size, response.body);
+            responses[id] = response;
+            response_notifier.notify_all();
+        }
+    } catch (std::runtime_error &error) {
+        connected = false;
+        response_notifier.notify_all();
+        delete[] response.body;
+    }
+}
+
+CloudClient::ServerResponse CloudClient::wait_response(uint32_t id, std::unique_lock<std::mutex> &locker) {
+    while (connected && !responses.contains(id)) response_notifier.wait(locker);
+    if (!connected) throw std::runtime_error("not connected");
+    ServerResponse response = responses[id];
+    responses.erase(id);
+    return response;
 }
 
 CloudRequestError::CloudRequestError(uint16_t status, std::string info) : desc(
