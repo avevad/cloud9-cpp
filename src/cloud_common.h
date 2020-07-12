@@ -149,6 +149,8 @@ static const uint16_t REQUEST_CMD_FD_CLOSE = 8;
 static const uint16_t REQUEST_CMD_FD_READ = 9;
 static const uint16_t REQUEST_CMD_FD_WRITE = 10;
 static const uint16_t REQUEST_CMD_GET_NODE_INFO = 11;
+static const uint16_t REQUEST_CMD_FD_READ_LONG = 12;
+static const uint16_t REQUEST_CMD_FD_WRITE_LONG = 13;
 static const uint16_t REQUEST_OK = 0;
 static const uint16_t REQUEST_ERR_BODY_TOO_LARGE = 1;
 static const uint16_t REQUEST_ERR_INVALID_CMD = 2;
@@ -166,6 +168,7 @@ static const uint16_t REQUEST_ERR_BAD_FD = 13;
 static const uint16_t REQUEST_ERR_END_OF_FILE = 14;
 static const uint16_t REQUEST_ERR_NOT_SUPPORTED = 15;
 static const uint16_t REQUEST_ERR_READ_BLOCK_IS_TOO_LARGE = 16;
+static const uint16_t REQUEST_SWITCH_OK = 17;
 
 static const uint64_t USER_PASSWORD_SALT_LENGTH = 32;
 
@@ -212,6 +215,7 @@ static std::string request_status_string(uint16_t status) {
     else if (status == REQUEST_ERR_END_OF_FILE) return "end of file";
     else if (status == REQUEST_ERR_NOT_SUPPORTED) return "operation not supported";
     else if (status == REQUEST_ERR_READ_BLOCK_IS_TOO_LARGE) return "block size is too big";
+    else if (status == REQUEST_SWITCH_OK) return "switching to long data transfer mode";
     else return "unknown request error (" + std::to_string(status) + ")";
 }
 
@@ -227,6 +231,8 @@ static std::string request_name(uint16_t request) {
     else if (request == REQUEST_CMD_FD_READ) return "FDRD";
     else if (request == REQUEST_CMD_FD_WRITE) return "FDWR";
     else if (request == REQUEST_CMD_GET_NODE_INFO) return "NINF";
+    else if (request == REQUEST_CMD_FD_READ_LONG) return "FDRL";
+    else if (request == REQUEST_CMD_FD_WRITE_LONG) return "FDWL";
     else return std::to_string(request);
 }
 

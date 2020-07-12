@@ -1,5 +1,6 @@
 #include <stdexcept>
 #include <functional>
+#include <iostream>
 #include "cloud_client.h"
 #include "cloud_common.h"
 
@@ -30,6 +31,38 @@ CloudClient::~CloudClient() {
             send_uint64(connection, 0);
         } catch (std::exception &exception) {}
     }
+}
+
+
+void CloudClient::listener_routine() {
+    ServerResponse response;
+    try {
+        while (true) {
+            response = ServerResponse();
+            uint32_t id = read_uint32(connection);
+            response.status = read_uint16(connection);
+            response.size = read_uint64(connection);
+            response.body = new char[response.size];
+            read_exact(connection, response.size, response.body);
+            responses[id] = response;
+            response_notifier.notify_all();
+            if (response.status == REQUEST_SWITCH_OK) {
+                std::unique_lock locker(ldtm_lock);
+            }
+        }
+    } catch (std::runtime_error &error) {
+        connected = false;
+        response_notifier.notify_all();
+        delete[] response.body;
+    }
+}
+
+CloudClient::ServerResponse CloudClient::wait_response(uint32_t id, std::unique_lock<std::mutex> &locker) {
+    while (connected && !responses.contains(id)) response_notifier.wait(locker);
+    if (!connected) throw std::runtime_error("not connected");
+    ServerResponse response = responses[id];
+    responses.erase(id);
+    return response;
 }
 
 Node CloudClient::get_home(const std::string &user) {
@@ -212,32 +245,40 @@ NodeInfo CloudClient::get_node_info(Node node) {
     return node_info;
 }
 
-void CloudClient::listener_routine() {
-    ServerResponse response;
+
+void CloudClient::fd_read_long(uint8_t fd, const std::function<uint32_t(uint32_t, const char *)> &callback) {
+    std::unique_lock<std::mutex> locker(api_lock);
+    std::unique_lock<std::mutex> locker_ldtm(ldtm_lock);
+    send_uint32(connection, current_id);
+    send_uint16(connection, REQUEST_CMD_FD_READ_LONG);
+    send_uint64(connection, 1);
+    send_uint8(connection, fd);
+    ServerResponse response = wait_response(current_id++, locker);
+    if (response.status != REQUEST_SWITCH_OK) {
+        delete[] response.body;
+        throw CloudRequestError(response.status);
+    }
+    delete[] response.body;
+    char *buffer = nullptr;
+    uint32_t size = 0;
+    uint32_t read = 0;
     try {
         while (true) {
-            response = ServerResponse();
-            uint32_t id = read_uint32(connection);
-            response.status = read_uint16(connection);
-            response.size = read_uint64(connection);
-            response.body = new char[response.size];
-            read_exact(connection, response.size, response.body);
-            responses[id] = response;
-            response_notifier.notify_all();
+            uint32_t new_size = callback(read, buffer);
+            send_uint32(connection, new_size);
+            if (!new_size) break;
+            if (new_size > size) {
+                delete[] buffer;
+                buffer = new char[new_size];
+                size = new_size;
+            }
+            read = read_uint32(connection);
+            read_exact(connection, read, buffer);
         }
-    } catch (std::runtime_error &error) {
-        connected = false;
-        response_notifier.notify_all();
-        delete[] response.body;
+    } catch (...) {
+        delete[] buffer;
+        return;
     }
-}
-
-CloudClient::ServerResponse CloudClient::wait_response(uint32_t id, std::unique_lock<std::mutex> &locker) {
-    while (connected && !responses.contains(id)) response_notifier.wait(locker);
-    if (!connected) throw std::runtime_error("not connected");
-    ServerResponse response = responses[id];
-    responses.erase(id);
-    return response;
 }
 
 CloudRequestError::CloudRequestError(uint16_t status, std::string info) : desc(

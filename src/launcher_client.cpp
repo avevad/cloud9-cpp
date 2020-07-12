@@ -206,33 +206,23 @@ void get_file(CloudClient *client, Node src, const std::string &dst, bool info, 
     NodeInfo node_info = client->get_node_info(src);
     std::ofstream stream(dst);
     auto fd = client->fd_open(src, NODE_FD_MODE_READ);
-    char *buffer = new char[block_size];
     size_t done = 0;
     auto start_time = get_current_time_ms();
     size_t last_status_time = start_time;
-    try {
-        while (true) {
-            auto read = client->fd_read(fd, block_size, buffer);
-            done += read;
-            stream.write(buffer, read);
-            if (info) {
-                if (get_current_time_ms() - last_status_time > STATUS_DELAY) {
-                    print_loading_status(done, node_info.size, start_time);
-                    last_status_time = get_current_time_ms();
-                }
+    client->fd_read_long(fd, [&](uint32_t read, const char *buffer) -> uint32_t {
+        if (!buffer) return block_size;
+        stream.write(buffer, read);
+        done += read;
+        if (info) {
+            if (get_current_time_ms() - last_status_time > STATUS_DELAY) {
+                print_loading_status(done, node_info.size, start_time);
+                last_status_time = get_current_time_ms();
             }
         }
-    } catch (CloudRequestError &error) {
-        if (error.status != REQUEST_ERR_END_OF_FILE) {
-            delete[] buffer;
-            throw;
-        }
-    } catch (...) {
-        delete[] buffer;
-        throw;
-    }
-    if (info) print_loading_status(done, node_info.size, start_time);
-    delete[] buffer;
+        if (read) return block_size;
+        else return 0;
+    });
+    if (info) print_loading_status(node_info.size, node_info.size, start_time);
     client->fd_close(fd);
     if (info) std::cout << std::endl;
 }

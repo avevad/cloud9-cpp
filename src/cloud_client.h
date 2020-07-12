@@ -24,11 +24,11 @@ private:
     };
     NetConnection *const connection;
     std::mutex api_lock;
+    std::mutex ldtm_lock;
     std::thread listener;
     std::condition_variable response_notifier;
     std::map<uint32_t, ServerResponse> responses;
     uint32_t current_id = 0;
-    bool shutting_down = false;
     bool connected = true;
 public:
     CloudClient(NetConnection *net, const std::string &login, std::string (*password_callback)(void *), void *ud);
@@ -52,6 +52,8 @@ public:
     uint32_t fd_read(uint8_t fd, uint32_t n, void *bytes);
 
     void fd_write(uint8_t fd, uint32_t n, const void *bytes);
+
+    void fd_read_long(uint8_t fd, const std::function<uint32_t(uint32_t, const char *)> &callback);
 
     NodeInfo get_node_info(Node node);
 
