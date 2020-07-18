@@ -160,18 +160,18 @@ void put_file(CloudClient *client, const std::string &src, Node dst, bool info, 
     auto start_time = get_current_time_ms();
     size_t last_status_time = start_time;
     try {
-        while (!stream.eof()) {
-            stream.read(buffer, block_size);
-            size_t read = stream.gcount();
-            done += read;
-            client->fd_write(fd, read, buffer);
+        client->fd_write_long(fd, [&]() -> std::pair<const char *, uint32_t> {
             if (info) {
                 if (get_current_time_ms() - last_status_time > STATUS_DELAY) {
                     print_loading_status(done, size, start_time);
                     last_status_time = get_current_time_ms();
                 }
             }
-        }
+            stream.read(buffer, block_size);
+            uint32_t read = stream.gcount();
+            done += read;
+            return {buffer, read};
+        });
     } catch (...) {
         delete[] buffer;
         throw;

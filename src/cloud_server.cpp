@@ -574,6 +574,50 @@ void CloudServer::listener_routine(Session *session) {
                     }
                     delete[] buffer;
                 }
+            } else if (cmd == REQUEST_CMD_FD_WRITE_LONG) {
+                if (size < 1) {
+                    send_uint16(session->connection, REQUEST_ERR_MALFORMED_CMD);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                uint8_t fd = *reinterpret_cast<uint8_t *>(body);
+                if (fd >= session->fds.size()) {
+                    send_uint16(session->connection, REQUEST_ERR_BAD_FD);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                Session::FileDescriptor descriptor = session->fds[fd];
+                if (!descriptor.stream) {
+                    send_uint16(session->connection, REQUEST_ERR_BAD_FD);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                if (!(descriptor.mode & NODE_FD_MODE_WRITE)) {
+                    send_uint16(session->connection, REQUEST_ERR_NOT_SUPPORTED);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                send_uint16(session->connection, REQUEST_SWITCH_OK);
+                send_uint64(session->connection, 0);
+                global_locker.unlock();
+                while (true) {
+                    uint32_t count = read_uint32(session->connection);
+                    if (count == 0) break;
+                    uint32_t done = 0;
+                    while (done < count) {
+                        uint32_t read = std::min(count - done, MAX_READ_BLOCK_SIZE);
+                        char *buffer = new char[read];
+                        try {
+                            read_exact(session->connection, read, buffer);
+                            descriptor.stream->write(buffer, read);
+                            done += read;
+                        } catch (...) {
+                            delete[] buffer;
+                            throw;
+                        }
+                        delete[] buffer;
+                    }
+                }
             } else {
                 log_request(session, cmd);
                 log_error(session, REQUEST_ERR_INVALID_CMD);
