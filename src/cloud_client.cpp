@@ -281,24 +281,26 @@ void CloudClient::fd_read_long(uint8_t fd, const std::function<uint32_t(uint32_t
     }
 }
 
-void CloudClient::fd_write_long(uint8_t fd, const std::function<std::pair<const char *, uint32_t>()> &callback) {
+void CloudClient::fd_write_long(uint8_t fd, uint64_t size,
+                                const std::function<std::pair<const char *, uint32_t>()> &callback) {
     std::unique_lock<std::mutex> locker(api_lock);
     std::unique_lock<std::mutex> locker_ldtm(ldtm_lock);
     send_uint32(connection, current_id);
     send_uint16(connection, REQUEST_CMD_FD_WRITE_LONG);
-    send_uint64(connection, 1);
+    send_uint64(connection, 1 + sizeof(uint64_t));
     send_uint8(connection, fd);
+    send_uint64(connection, size);
     ServerResponse response = wait_response(current_id++, locker);
     if (response.status != REQUEST_SWITCH_OK) {
         delete[] response.body;
         throw CloudRequestError(response.status);
     }
     delete[] response.body;
-    while (true) {
-        auto[data, size] = callback();
-        send_uint32(connection, size);
-        send_exact(connection, size, data);
-        if (!size) break;
+    uint64_t done = 0;
+    while (done < size) {
+        auto[data, sent] = callback();
+        send_exact(connection, sent, data);
+        done += uint64_t(sent);
     }
 }
 

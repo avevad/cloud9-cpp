@@ -575,12 +575,13 @@ void CloudServer::listener_routine(Session *session) {
                     delete[] buffer;
                 }
             } else if (cmd == REQUEST_CMD_FD_WRITE_LONG) {
-                if (size < 1) {
+                if (size != 1 + sizeof(uint64_t)) {
                     send_uint16(session->connection, REQUEST_ERR_MALFORMED_CMD);
                     send_uint64(session->connection, 0);
                     continue;
                 }
                 uint8_t fd = *reinterpret_cast<uint8_t *>(body);
+                uint64_t count = buf_read_uint64(body + 1);
                 if (fd >= session->fds.size()) {
                     send_uint16(session->connection, REQUEST_ERR_BAD_FD);
                     send_uint64(session->connection, 0);
@@ -600,24 +601,20 @@ void CloudServer::listener_routine(Session *session) {
                 send_uint16(session->connection, REQUEST_SWITCH_OK);
                 send_uint64(session->connection, 0);
                 global_locker.unlock();
-                while (true) {
-                    uint32_t count = read_uint32(session->connection);
-                    if (count == 0) break;
-                    uint32_t done = 0;
+                uint64_t done = 0;
+                char *buffer = new char[MAX_READ_BLOCK_SIZE];
+                try {
                     while (done < count) {
-                        uint32_t read = std::min(count - done, MAX_READ_BLOCK_SIZE);
-                        char *buffer = new char[read];
-                        try {
-                            read_exact(session->connection, read, buffer);
-                            descriptor.stream->write(buffer, read);
-                            done += read;
-                        } catch (...) {
-                            delete[] buffer;
-                            throw;
-                        }
-                        delete[] buffer;
+                        uint64_t read = session->connection->read(std::min(done - count, uint64_t(MAX_READ_BLOCK_SIZE)),
+                                                                  buffer);
+                        descriptor.stream->write(buffer, read);
+                        done += read;
                     }
+                } catch (...) {
+                    delete[] buffer;
+                    throw;
                 }
+                delete[] buffer;
             } else {
                 log_request(session, cmd);
                 log_error(session, REQUEST_ERR_INVALID_CMD);

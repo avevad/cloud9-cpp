@@ -160,7 +160,7 @@ void put_file(CloudClient *client, const std::string &src, Node dst, bool info, 
     auto start_time = get_current_time_ms();
     size_t last_status_time = start_time;
     try {
-        client->fd_write_long(fd, [&]() -> std::pair<const char *, uint32_t> {
+        client->fd_write_long(fd, size, [&]() -> std::pair<const char *, uint32_t> {
             if (info) {
                 if (get_current_time_ms() - last_status_time > STATUS_DELAY) {
                     print_loading_status(done, size, start_time);
