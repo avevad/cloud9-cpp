@@ -605,7 +605,7 @@ void CloudServer::listener_routine(Session *session) {
                 char *buffer = new char[MAX_READ_BLOCK_SIZE];
                 try {
                     while (done < count) {
-                        uint64_t read = session->connection->read(std::min(done - count, uint64_t(MAX_READ_BLOCK_SIZE)),
+                        uint64_t read = session->connection->read(std::min(count - done, uint64_t(MAX_READ_BLOCK_SIZE)),
                                                                   buffer);
                         descriptor.stream->write(buffer, read);
                         done += read;
