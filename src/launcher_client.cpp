@@ -403,7 +403,7 @@ int shell(CloudClient *client, NetConnection *connection, const std::string &log
             }
         } else std::cerr << "failed to parse command: " << error << std::endl;
         if (!connection->is_valid()) {
-            std::cerr << "connection closed" << std::endl;
+            std::cerr << "connection to " << host << " lost" << std::endl;
             fail = true;
             break;
         }

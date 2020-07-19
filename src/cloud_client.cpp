@@ -23,13 +23,15 @@ CloudClient::CloudClient(NetConnection *net, const std::string &login, std::stri
 CloudClient::~CloudClient() {
     if (connected) {
         try {
-            connection->close();
-            if (listener.joinable()) listener.join();
             std::unique_lock<std::mutex> locker(api_lock);
             send_uint32(connection, current_id);
             send_uint16(connection, REQUEST_CMD_GOODBYE);
             send_uint64(connection, 0);
+            connection->close();
+            if (listener.joinable()) listener.join();
         } catch (std::exception &exception) {}
+    } else {
+        if (listener.joinable()) listener.join();
     }
 }
 
