@@ -250,20 +250,87 @@ void get_node(CloudClient *client, Node node, const std::string &dst_dir, bool i
     }
 }
 
+std::string get_node_name(CloudClient *client, Node node) {
+    Node parent;
+    if (client->get_parent(node, &parent)) {
+        std::string name;
+        client->list_directory(parent, [&name, node](const std::string &child_name, Node child) {
+            if (child == node) {
+                name = child_name;
+            }
+        });
+        return name;
+    } else {
+        return CLOUD_PATH_HOME + client->get_node_owner(node);
+    }
+}
+
+std::string node_desc(CloudClient *client, Node node, bool type_and_rights, bool size, bool hidden) {
+    std::string result;
+    std::string name = get_node_name(client, node);;
+    if (name.starts_with('.') && !hidden) return "";
+    NodeInfo info = client->get_node_info(node);
+    if (type_and_rights) {
+        if (info.type == NODE_TYPE_FILE) result += '-';
+        else if (info.type == NODE_TYPE_DIRECTORY) result += 'd';
+        else result += '?';
+        result += rights2string(info.rights);
+        result += '\t';
+    }
+    if (size) {
+        std::string size_s = std::to_string(info.size);
+        result += size_s;
+        result += '\t';
+        if (size_s.length() < 8) result += '\t';
+    }
+    result += name;
+    if (info.type == NODE_TYPE_DIRECTORY) result += CLOUD_PATH_DIV;
+    result += '\n';
+    return result;
+}
+
 int shell(CloudClient *client, NetConnection *connection, const std::string &login, const std::string &host) {
     const std::map<std::string, void (*)(CloudClient *, Node &, std::vector<std::string> &)> commands{
             {"ls",  [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
-                if (args.size() > 1) {
-                    std::cerr << "ls: too many arguments" << std::endl;
-                    return;
+                std::string target;
+                std::string options;
+                for (auto &a : args) {
+                    if (!a.empty() && a[0] == '-') {
+                        options += a.substr(1);
+                    } else {
+                        if (!target.empty()) {
+                            std::cerr << "ls: too much arguments" << std::endl;
+                            return;
+                        } else target = a;
+                    }
                 }
-                std::string flags;
-                if (!args.empty()) {
-                    flags = args[0];
+                bool type_and_rights = false;
+                bool size = false;
+                bool hidden = false;
+                for (auto o : options) {
+                    if (o == 'm') {
+                        type_and_rights = true;
+                    } else if (o == 's') {
+                        size = true;
+                    } else if (o == 'a') {
+                        hidden = true;
+                    } else {
+                        std::cerr << "ls: unknown option '" << o << "'" << std::endl;
+                    }
                 }
-                client->list_directory(cwd, [](const std::string &name, Node node) {
-                    std::cout << name << std::endl;
-                });
+                if (target.empty() || target.ends_with(CLOUD_PATH_DIV)) {
+                    Node node = target.empty() ? cwd : get_path_node(client, cwd, target);
+                    std::vector<std::pair<std::string, Node>> children;
+                    client->list_directory(node, [&](const std::string &name, Node child) {
+                        children.emplace_back(name, child);
+                    });
+                    std::sort(children.begin(), children.end());
+                    for (auto[name, child] : children) {
+                        std::cout << node_desc(client, child, type_and_rights, size, hidden);
+                    }
+                } else {
+                    std::cout << node_desc(client, get_path_node(client, cwd, target), type_and_rights, size, hidden);
+                }
             }},
             {"cd",  [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
                 if (args.empty()) {
@@ -272,7 +339,7 @@ int shell(CloudClient *client, NetConnection *connection, const std::string &log
                     cwd = get_path_node(client, cwd, args[0]);
                 } else std::cerr << "cd: too many arguments" << std::endl;
             }},
-            {"pwd",   [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
+            {"pwd", [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
                 if (!args.empty()) std::cerr << "pwd: too many arguments" << std::endl;
                 else {
                     std::cout << CLOUD_PATH_HOME << client->get_node_owner(cwd) << get_node_path(client, cwd)
