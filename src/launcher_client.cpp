@@ -209,19 +209,23 @@ void get_file(CloudClient *client, Node src, const std::string &dst, bool info, 
     size_t done = 0;
     auto start_time = get_current_time_ms();
     size_t last_status_time = start_time;
-    client->fd_read_long(fd, [&](uint32_t read, const char *buffer) -> uint32_t {
-        if (!buffer) return block_size;
-        stream.write(buffer, read);
-        done += read;
-        if (info) {
-            if (get_current_time_ms() - last_status_time > STATUS_DELAY) {
-                print_loading_status(done, node_info.size, start_time);
-                last_status_time = get_current_time_ms();
+    char *buffer = new char[block_size];
+    try {
+        client->fd_read_long(fd, node_info.size, buffer, block_size, [&](uint32_t read) {
+            stream.write(buffer, read);
+            done += read;
+            if (info) {
+                if (get_current_time_ms() - last_status_time > STATUS_DELAY) {
+                    print_loading_status(done, node_info.size, start_time);
+                    last_status_time = get_current_time_ms();
+                }
             }
-        }
-        if (read) return block_size;
-        else return 0;
-    });
+        });
+    } catch (...) {
+        delete[] buffer;
+        throw;
+    }
+    delete[] buffer;
     if (info) print_loading_status(node_info.size, node_info.size, start_time);
     client->fd_close(fd);
     if (info) std::cout << std::endl;

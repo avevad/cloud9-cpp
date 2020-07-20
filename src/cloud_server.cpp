@@ -533,12 +533,13 @@ void CloudServer::listener_routine(Session *session) {
                 send_uint8(session->connection, file_type);
                 send_uint64(session->connection, file_size);
             } else if (cmd == REQUEST_CMD_FD_READ_LONG) {
-                if (size != 1) {
+                if (size != 1 + sizeof(uint64_t)) {
                     send_uint16(session->connection, REQUEST_ERR_MALFORMED_CMD);
                     send_uint64(session->connection, 0);
                     continue;
                 }
                 uint8_t fd = *reinterpret_cast<uint8_t *>(body);
+                uint64_t count = buf_read_uint64(body + 1);
                 if (fd >= session->fds.size()) {
                     send_uint16(session->connection, REQUEST_ERR_BAD_FD);
                     send_uint64(session->connection, 0);
@@ -555,25 +556,33 @@ void CloudServer::listener_routine(Session *session) {
                     send_uint64(session->connection, 0);
                     continue;
                 }
+                {
+                    uint64_t pos = descriptor.stream->tellg();
+                    descriptor.stream->seekg(0, std::fstream::end);
+                    uint64_t length = descriptor.stream->tellg();
+                    descriptor.stream->seekg(pos, std::fstream::beg);
+                    if (pos + count > length) {
+                        send_uint16(session->connection, REQUEST_ERR_END_OF_FILE);
+                        send_uint64(session->connection, 0);
+                    }
+                }
                 send_uint16(session->connection, REQUEST_SWITCH_OK);
                 send_uint64(session->connection, 0);
                 global_locker.unlock();
-                while (true) {
-                    uint32_t count = read_uint32(session->connection);
-                    if (count == 0) break;
-                    count = std::min(count, MAX_READ_BLOCK_SIZE);
-                    char *buffer = new char[count];
-                    descriptor.stream->read(buffer, count);
-                    uint32_t read = descriptor.stream->gcount();
-                    try {
-                        send_uint32(session->connection, read);
+                char *buffer = new char[MAX_READ_BLOCK_SIZE];
+                uint64_t done = 0;
+                try {
+                    while (done < count) {
+                        uint32_t read = std::min(count - done, uint64_t(MAX_READ_BLOCK_SIZE));
+                        descriptor.stream->read(buffer, read);
                         send_exact(session->connection, read, buffer);
-                    } catch (...) {
-                        delete[] buffer;
-                        throw;
+                        done += uint64_t(read);
                     }
+                } catch (...) {
                     delete[] buffer;
+                    throw;
                 }
+                delete[] buffer;
             } else if (cmd == REQUEST_CMD_FD_WRITE_LONG) {
                 if (size != 1 + sizeof(uint64_t)) {
                     send_uint16(session->connection, REQUEST_ERR_MALFORMED_CMD);
