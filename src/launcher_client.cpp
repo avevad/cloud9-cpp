@@ -185,6 +185,10 @@ void put_file(CloudClient *client, const std::string &src, Node dst, bool info, 
 void put_node(CloudClient *client, const std::string &file, Node dst_dir, bool info, size_t block_size, bool recursive,
               const std::string &dst_dir_path) {
     std::string name = std::filesystem::absolute(std::filesystem::path(file)).filename();
+    if (!std::filesystem::exists(file)) {
+        std::cerr << "put: '" << file << "' does not exist" << std::endl;
+        return;
+    }
     if (std::filesystem::is_regular_file(file)) {
         if (info) std::cout << file << "\t-->\t" << dst_dir_path << name << std::endl;
         Node dst = client->make_node(dst_dir, name, NODE_TYPE_FILE);
@@ -387,7 +391,7 @@ int shell(CloudClient *client, NetConnection *connection, const std::string &log
                         return;
                     }
                 }
-                if (files.empty()) {
+                if (files.size() < 2) {
                     std::cerr << "put: no destination directory specified" << std::endl;
                     return;
                 }
