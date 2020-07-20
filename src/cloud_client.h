@@ -56,7 +56,7 @@ public:
     void fd_read_long(uint8_t fd, uint64_t count, char *buffer, uint32_t buf_size,
                       const std::function<void(uint32_t)> &callback);
 
-    void fd_write_long(uint8_t fd, uint64_t size, const std::function<std::pair<const char *, uint32_t>()> &callback);
+    void fd_write_long(uint8_t fd, uint64_t count, const char *buffer, const std::function<uint32_t()> &callback);
 
     NodeInfo get_node_info(Node node);
 
