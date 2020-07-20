@@ -243,6 +243,7 @@ NodeInfo CloudClient::get_node_info(Node node) {
     p += sizeof(uint8_t);
     node_info.size = buf_read_uint64(p);
     p += sizeof(uint64_t);
+    node_info.rights = *reinterpret_cast<uint8_t *>(p);
     delete[] response.body;
     return node_info;
 }

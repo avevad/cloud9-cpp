@@ -524,14 +524,18 @@ void CloudServer::listener_routine(Session *session) {
                 }
                 auto[node_head, node_size] = get_node_head(node);
                 uint8_t file_type = *reinterpret_cast<uint8_t *>(node_head + NODE_HEAD_OFFSET_TYPE);
+                uint8_t file_rights = *reinterpret_cast<uint8_t *>(node_head + NODE_HEAD_OFFSET_RIGHTS);
                 delete[] node_head;
                 uint64_t file_size = std::filesystem::file_size(get_node_data_path(node));
-                log_response(session, std::pair("type", std::to_string(file_type)),
-                             std::pair("size", std::to_string(file_size)));
+                log_response(session,
+                             std::pair("type", std::to_string(file_type)),
+                             std::pair("size", std::to_string(file_size)),
+                             std::pair("rights", rights2string(file_rights)));
                 send_uint16(session->connection, REQUEST_OK);
-                send_uint64(session->connection, sizeof(uint8_t) + sizeof(uint64_t));
+                send_uint64(session->connection, sizeof(uint8_t) + sizeof(uint64_t) + sizeof(uint8_t));
                 send_uint8(session->connection, file_type);
                 send_uint64(session->connection, file_size);
+                send_uint8(session->connection, file_rights);
             } else if (cmd == REQUEST_CMD_FD_READ_LONG) {
                 if (size != 1 + sizeof(uint64_t)) {
                     send_uint16(session->connection, REQUEST_ERR_MALFORMED_CMD);

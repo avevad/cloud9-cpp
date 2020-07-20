@@ -317,4 +317,13 @@ static size_t get_current_time_ms() {
             ).count();
 }
 
+static std::string rights2string(uint8_t rights) {
+    return std::string({
+                               (rights | NODE_RIGHTS_GROUP_READ) ? 'r' : '-',
+                               (rights | NODE_RIGHTS_GROUP_WRITE) ? 'w' : '-',
+                               (rights | NODE_RIGHTS_ALL_READ) ? 'r' : '-',
+                               (rights | NODE_RIGHTS_ALL_WRITE) ? 'w' : '-'
+                       });
+}
+
 #endif //CLOUD9_CLOUD_COMMON_H
