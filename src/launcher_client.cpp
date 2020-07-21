@@ -96,19 +96,19 @@ Node get_path_node(CloudClient *client, Node cwd, const std::string &path) {
 std::string get_node_path(CloudClient *client, Node node) {
     Node parent;
     bool has_parent;
-    try {
-        has_parent = client->get_parent(node, &parent);
-    } catch (CloudRequestError &error) {
-        if (error.status == REQUEST_ERR_FORBIDDEN)
-            return CLOUD_PATH_DIV + std::string(1, CLOUD_PATH_UNKNOWN);
-        else throw;
-    }
+    has_parent = client->get_parent(node, &parent);
     if (has_parent) {
         std::string name;
-        client->list_directory(parent, [&name, node](const std::string &child_name, Node child) {
-            if (child == node)
-                name = child_name;
-        });
+        try {
+            client->list_directory(parent, [&name, node](const std::string &child_name, Node child) {
+                if (child == node)
+                    name = child_name;
+            });
+        } catch (CloudRequestError &error) {
+            if (error.status == REQUEST_ERR_FORBIDDEN)
+                return get_node_path(client, parent) + CLOUD_PATH_DIV + CLOUD_PATH_UNKNOWN;
+            else throw;
+        }
         return get_node_path(client, parent) + CLOUD_PATH_DIV + name;
     } else {
         return "";
@@ -457,7 +457,7 @@ int shell(CloudClient *client, NetConnection *connection, const std::string &log
         std::cout << login << "@" << host << "$ ";
         if (!std::getline(std::cin, command)) {
             std::cout << std::endl;
-            std::cout << "logout, connection closed" << std::endl;
+            std::cout << "Logout, connection closed" << std::endl;
             break;
         }
         command_store.clear();
@@ -470,15 +470,15 @@ int shell(CloudClient *client, NetConnection *connection, const std::string &log
                     try {
                         commands.at(command_name)(client, cwd, command_store);
                     } catch (std::runtime_error &error) {
-                        std::cerr << "error: " << error.what() << std::endl;
+                        std::cerr << "Error: " << error.what() << std::endl;
                     } catch (CloudRequestError &error) {
-                        std::cerr << "request failed: " << error.what() << std::endl;
+                        std::cerr << "Request failed: " << error.what() << std::endl;
                     }
-                } else std::cerr << "no such command: " << command_name << std::endl;
+                } else std::cerr << "No such command: " << command_name << std::endl;
             }
-        } else std::cerr << "failed to parse command: " << error << std::endl;
+        } else std::cerr << "Failed to parse command: " << error << std::endl;
         if (!connection->is_valid()) {
-            std::cerr << "connection to " << host << " lost" << std::endl;
+            std::cerr << "Lost connection to '" << host << "'" << std::endl;
             fail = true;
             break;
         }
@@ -503,7 +503,7 @@ int main(int argc, const char **argv) {
         }
     }
     if (args.empty() || args[0].empty()) {
-        std::cerr << "no target specified" << std::endl;
+        std::cerr << "No target specified" << std::endl;
         return 1;
     }
     std::string login;
@@ -522,7 +522,7 @@ int main(int argc, const char **argv) {
     }
     uint16_t port = CLOUD_DEFAULT_PORT;
     for (char o : options_short) {
-        std::cerr << "unknown short option '" << o << "'" << std::endl;
+        std::cerr << "Unknown short option '" << o << "'" << std::endl;
         return 1;
     }
     for (std::string &o : options_long) {
@@ -531,16 +531,16 @@ int main(int argc, const char **argv) {
             std::string s_port = o.substr(OPTION_LONG_PORT.length());
             int i_port = std::stoi(s_port);
             if (i_port > int(uint16_t(-1))) {
-                std::cerr << "port number is too large" << std::endl;
+                std::cerr << "Port number is too large" << std::endl;
                 return 1;
             }
             if (i_port < 0) {
-                std::cerr << "port number is too small" << std::endl;
+                std::cerr << "Port number is too small" << std::endl;
                 return 1;
             }
             port = i_port;
         } else {
-            std::cerr << "unknown long option '" << o << "'" << std::endl;
+            std::cerr << "Unknown long option '" << o << "'" << std::endl;
             return 1;
         }
     }
@@ -554,7 +554,7 @@ int main(int argc, const char **argv) {
     std::string prompt = login + "@" + host + "'s password: ";
     int result;
     if (login.empty()) {
-        std::cerr << "not implemented yet" << std::endl; // TODO: implement user registering
+        std::cerr << "Not implemented yet" << std::endl; // TODO: implement user registering
         result = 1;
     } else {
         CloudClient *client = nullptr;
@@ -569,7 +569,7 @@ int main(int argc, const char **argv) {
                 return password;
             }, (void *) prompt.c_str());
         } catch (std::exception &exception) {
-            std::cerr << "authentication failed: " << exception.what() << std::endl;
+            std::cerr << "Authentication failed: " << exception.what() << std::endl;
             connection->close();
             delete connection;
             return 1;

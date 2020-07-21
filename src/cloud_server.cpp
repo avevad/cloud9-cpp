@@ -185,15 +185,6 @@ void CloudServer::listener_routine(Session *session) {
                 uint16_t error = REQUEST_OK;
                 Node parent;
                 bool ok = get_parent(node, parent, error);
-                if (error != REQUEST_ERR_NOT_FOUND) {
-                    ReadWrite rights = get_user_rights(node, session->login);
-                    if (!rights.read) {
-                        log_error(session, REQUEST_ERR_FORBIDDEN);
-                        send_uint16(session->connection, REQUEST_ERR_FORBIDDEN);
-                        send_uint64(session->connection, 0);
-                        continue;
-                    }
-                }
                 if (ok) {
                     log_response(session, std::pair("parent", node2string(parent)));
                     send_uint16(session->connection, REQUEST_OK);
@@ -513,12 +504,6 @@ void CloudServer::listener_routine(Session *session) {
                 if (!node_exists(node)) {
                     log_error(session, REQUEST_ERR_NOT_FOUND);
                     send_uint16(session->connection, REQUEST_ERR_NOT_FOUND);
-                    send_uint64(session->connection, 0);
-                    continue;
-                }
-                if (!get_user_rights(node, session->login).read) {
-                    log_error(session, REQUEST_ERR_FORBIDDEN);
-                    send_uint16(session->connection, REQUEST_ERR_FORBIDDEN);
                     send_uint64(session->connection, 0);
                     continue;
                 }
