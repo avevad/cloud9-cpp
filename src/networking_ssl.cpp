@@ -55,7 +55,7 @@ SSLConnection::SSLConnection(const char *host, int port) {
         throw std::runtime_error("error connecting to server: " + std::string(strerror(errno)));
     }
     freeaddrinfo(server_info);
-    context = SSL_CTX_new(TLS_client_method());
+    context = SSL_CTX_new(SSLv23_client_method());
     ssl = SSL_new(context);
     SSL_set_fd(ssl, sock);
     status = SSL_connect(ssl);
@@ -106,7 +106,7 @@ bool SSLConnection::is_valid() {
 
 SSLServer::SSLServer(int port, const char *cert, const char *key, pem_password_cb *password_cb, void *password_cb_ud)
         : cert(cert), key(key) {
-    context = SSL_CTX_new(TLS_server_method());
+    context = SSL_CTX_new(SSLv23_server_method());
     SSL_CTX_set_default_passwd_cb(context, password_cb);
     SSL_CTX_set_default_passwd_cb_userdata(context, password_cb_ud);
     if (SSL_CTX_use_certificate_file(context, cert, SSL_FILETYPE_PEM) <= 0) {
