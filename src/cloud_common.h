@@ -151,6 +151,7 @@ static const uint16_t REQUEST_CMD_FD_WRITE = 10;
 static const uint16_t REQUEST_CMD_GET_NODE_INFO = 11;
 static const uint16_t REQUEST_CMD_FD_READ_LONG = 12;
 static const uint16_t REQUEST_CMD_FD_WRITE_LONG = 13;
+static const uint16_t REQUEST_CMD_SET_NODE_RIGHTS = 14;
 static const uint16_t REQUEST_OK = 0;
 static const uint16_t REQUEST_ERR_BODY_TOO_LARGE = 1;
 static const uint16_t REQUEST_ERR_INVALID_CMD = 2;
@@ -233,6 +234,7 @@ static std::string request_name(uint16_t request) {
     else if (request == REQUEST_CMD_GET_NODE_INFO) return "NINF";
     else if (request == REQUEST_CMD_FD_READ_LONG) return "FDRL";
     else if (request == REQUEST_CMD_FD_WRITE_LONG) return "FDWL";
+    else if (request == REQUEST_CMD_SET_NODE_RIGHTS) return "SRGH";
     else return std::to_string(request);
 }
 

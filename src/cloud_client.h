@@ -61,6 +61,8 @@ public:
 
     NodeInfo get_node_info(Node node);
 
+    void set_node_rights(Node node, uint8_t rights);
+
     void listener_routine();
 
     ServerResponse wait_response(uint32_t id, std::unique_lock<std::mutex> &locker);

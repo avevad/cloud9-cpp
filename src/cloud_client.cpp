@@ -295,6 +295,20 @@ void CloudClient::fd_write_long(uint8_t fd, uint64_t count, const char *buffer,
     }
 }
 
+void CloudClient::set_node_rights(Node node, uint8_t rights) {
+    std::unique_lock<std::mutex> locker(api_lock);
+    send_uint32(connection, current_id);
+    send_uint16(connection, REQUEST_CMD_SET_NODE_RIGHTS);
+    send_uint64(connection, sizeof(Node) + 1);
+    send_exact(connection, sizeof(Node), &node);
+    send_uint8(connection, rights);
+    ServerResponse response = wait_response(current_id++, locker);
+    delete[] response.body;
+    if (response.status != REQUEST_OK) {
+        throw CloudRequestError(response.status);
+    }
+}
+
 
 CloudRequestError::CloudRequestError(uint16_t status, std::string info) : desc(
         info.empty() ? request_status_string(status) : (request_status_string(status) + " (" + info + ")")),

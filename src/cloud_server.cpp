@@ -613,6 +613,40 @@ void CloudServer::listener_routine(Session *session) {
                     throw;
                 }
                 delete[] buffer;
+            } else if (cmd == REQUEST_CMD_SET_NODE_RIGHTS) {
+                if (size != sizeof(Node) + 1) {
+                    log_request(session, cmd);
+                    log_error(session, REQUEST_ERR_MALFORMED_CMD);
+                    send_uint16(session->connection, REQUEST_ERR_MALFORMED_CMD);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                Node node = *reinterpret_cast<Node *>(body);
+                uint8_t rights = *reinterpret_cast<uint8_t *>(body + sizeof(Node));
+                rights &= uint8_t(NODE_RIGHTS_GROUP_READ | NODE_RIGHTS_GROUP_WRITE | NODE_RIGHTS_ALL_READ |
+                                  NODE_RIGHTS_ALL_WRITE);
+                log_request(session, cmd, std::pair("node", node2string(node)),
+                            std::pair("rights", rights2string(rights)));
+                if (!node_exists(node)) {
+                    log_error(session, REQUEST_ERR_NOT_FOUND);
+                    send_uint16(session->connection, REQUEST_ERR_NOT_FOUND);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                if (get_node_owner(node) != session->login) {
+                    log_error(session, REQUEST_ERR_FORBIDDEN);
+                    send_uint16(session->connection, REQUEST_ERR_FORBIDDEN);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                auto[node_head, node_size] = get_node_head(node);
+                std::ofstream node_stream(get_node_head_path(node));
+                *(reinterpret_cast<uint8_t *>(node_head + NODE_HEAD_OFFSET_RIGHTS)) = rights;
+                node_stream.write(node_head, node_size);
+                delete[] node_head;
+                log_response(session);
+                send_uint16(session->connection, REQUEST_OK);
+                send_uint64(session->connection, 0);
             } else {
                 log_request(session, cmd);
                 log_error(session, REQUEST_ERR_INVALID_CMD);
