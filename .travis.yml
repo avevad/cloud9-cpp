@@ -6,6 +6,9 @@ addons:
     sources:
       - ubuntu-toolchain-r-test
     packages:
+      - liblua5.3-dev
+      - liblua5.3
+      - openssl
       - gcc-9
       - g++-9
       - cmake
