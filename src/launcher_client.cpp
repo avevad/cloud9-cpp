@@ -408,7 +408,7 @@ int shell(CloudClient *client, NetConnection *connection, const std::string &log
                     put_node(client, file, dst_dir, info, block_size, recursive, dst_dir_path);
                 }
             }},
-            {"get", [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
+            {"get",   [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
                 std::vector<std::string> options;
                 std::vector<std::string> files;
                 for (auto &arg : args) {
@@ -446,6 +446,27 @@ int shell(CloudClient *client, NetConnection *connection, const std::string &log
                     else name = path.substr(path.find_last_of(CLOUD_PATH_DIV) + 1);
                     get_node(client, node, dst_dir + PATH_DIV, info, block_size, recursive,
                              CLOUD_PATH_HOME + client->get_node_owner(node) + path, name);
+                }
+            }},
+            {"chmod", [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
+                if (args.size() < 2) {
+                    std::cerr << "chmod: not enough arguments" << std::endl;
+                } else if (args.size() > 2) {
+                    std::cerr << "chmod: too many arguments" << std::endl;
+                } else {
+                    std::string s_rights = args[0];
+                    std::string path = args[1];
+                    Node target = get_path_node(client, cwd, path);
+                    if (s_rights.size() != 4 || s_rights.find_first_not_of("01") != std::string::npos) {
+                        std::cerr << "chmod: invalid rights" << std::endl;
+                        return;
+                    }
+                    uint8_t rights =
+                            uint8_t(s_rights[0] == '1' ? NODE_RIGHTS_GROUP_READ : 0) |
+                            uint8_t(s_rights[1] == '1' ? NODE_RIGHTS_GROUP_WRITE : 0) |
+                            uint8_t(s_rights[2] == '1' ? NODE_RIGHTS_ALL_READ : 0) |
+                            uint8_t(s_rights[3] == '1' ? NODE_RIGHTS_ALL_WRITE : 0);
+                    client->set_node_rights(target, rights);
                 }
             }}
     };
