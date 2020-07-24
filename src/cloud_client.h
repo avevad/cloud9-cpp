@@ -76,7 +76,7 @@ public:
     explicit CloudInitError(uint16_t status);
 
 public:
-    const char *what() const noexcept override;
+    [[nodiscard]] const char *what() const noexcept override;
 };
 
 class CloudRequestError : public std::exception {
@@ -88,7 +88,7 @@ public:
     explicit CloudRequestError(uint16_t status, std::string info = "");
 
 public:
-    const char *what() const noexcept override;
+    [[nodiscard]] const char *what() const noexcept override;
 };
 
 #endif //CLOUD9_CLOUD_CLIENT_H
