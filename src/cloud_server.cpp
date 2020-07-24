@@ -63,18 +63,14 @@ void CloudServer::listener_routine(Session *session) {
             session->login = std::string(body + sizeof(uint8_t), login_length);
             std::string password(body + sizeof(uint8_t) + login_length, body + size);
             if (!is_valid_login(session->login)) INIT_ERR(INIT_ERR_AUTH_FAILED);
-            std::string user_file_path = config.users_directory + PATH_DIV + session->login;
-            if (!std::filesystem::is_regular_file(user_file_path)) INIT_ERR(INIT_ERR_AUTH_FAILED);
-            std::ifstream user_file(user_file_path);
-            std::string user_string((std::istreambuf_iterator<char>(user_file)), std::istreambuf_iterator<char>());
-            std::string salt = user_string.substr(0, USER_PASSWORD_SALT_LENGTH);
+            auto[user_head, user_size] = get_user_head(session->login);
+            std::string salt(user_head + USER_HEAD_OFFSET_SALT, USER_PASSWORD_SALT_LENGTH);
             std::string password_salted = password + salt;
-            char *sha256 = new char[SHA256_DIGEST_LENGTH + 1];
+            char *sha256 = new char[SHA256_DIGEST_LENGTH];
             SHA256(reinterpret_cast<const unsigned char *>(password_salted.c_str()), password_salted.length(),
                    reinterpret_cast<unsigned char *>(sha256));
-            sha256[SHA256_DIGEST_LENGTH] = '\0';
-            std::string sha256_real = user_string.substr(USER_PASSWORD_SALT_LENGTH, SHA256_DIGEST_LENGTH);
-            bool ok = strcmp(sha256, sha256_real.c_str()) == 0;
+            bool ok = memcmp(sha256, user_head + USER_HEAD_OFFSET_HASH, SHA256_DIGEST_LENGTH) == 0;
+            delete[] user_head;
             delete[] sha256;
             if (ok) send_uint16(session->connection, INIT_OK);
             else INIT_ERR(INIT_ERR_AUTH_FAILED);
@@ -116,15 +112,12 @@ void CloudServer::listener_routine(Session *session) {
                     send_uint16(session->connection, REQUEST_ERR_NOT_FOUND);
                     send_uint64(session->connection, 0);
                 } else {
-                    std::ifstream user_file(user_file_path);
-                    std::string user_string((std::istreambuf_iterator<char>(user_file)),
-                                            std::istreambuf_iterator<char>());
-                    const Node *node = reinterpret_cast<const Node *>(user_string.c_str() + USER_PASSWORD_SALT_LENGTH +
-                                                                      SHA256_DIGEST_LENGTH);
-                    log_response(session, std::pair("home", node2string(*node)));
+                    auto[user_head, user_size] = get_user_head(session->login);
+                    Node home = *reinterpret_cast<const Node *>(user_head + USER_HEAD_OFFSET_HOME);
+                    log_response(session, std::pair("home", node2string(home)));
                     send_uint16(session->connection, REQUEST_OK);
                     send_uint64(session->connection, sizeof(Node));
-                    send_exact(session->connection, sizeof(Node), node);
+                    send_exact(session->connection, sizeof(Node), &home);
                 }
             } else if (cmd == REQUEST_CMD_LIST_DIRECTORY) {
                 if (size != sizeof(Node)) {
@@ -781,6 +774,20 @@ void CloudServer::close_fd(Session *session, CloudServer::Session::FileDescripto
     delete fd.stream;
     if (fd.mode & NODE_FD_MODE_READ) readers[fd.node].erase(session);
     if (fd.mode & NODE_FD_MODE_WRITE) writers[fd.node] = nullptr;
+}
+
+std::string CloudServer::get_user_head_path(std::string user) {
+    return config.users_directory + PATH_DIV + user;
+}
+
+std::pair<const char *, size_t> CloudServer::get_user_head(std::string user) {
+    std::string user_file_path = get_user_head_path(user);
+    if (!std::filesystem::exists(user_file_path)) return {nullptr, 0};
+    std::ifstream user_file(user_file_path);
+    std::string user_string((std::istreambuf_iterator<char>(user_file)), std::istreambuf_iterator<char>());
+    char *ret = new char[user_string.size()];
+    memcpy(ret, user_string.c_str(), user_string.size());
+    return {ret, user_string.size()};
 }
 
 CloudServer::Session::Session(NetConnection *connection) : connection(connection) {

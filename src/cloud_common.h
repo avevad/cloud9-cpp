@@ -173,6 +173,10 @@ static const uint16_t REQUEST_SWITCH_OK = 17;
 
 static const uint64_t USER_PASSWORD_SALT_LENGTH = 32;
 
+static const uint64_t USER_HEAD_OFFSET_SALT = 0;
+static const uint64_t USER_HEAD_OFFSET_HASH = USER_PASSWORD_SALT_LENGTH;
+static const uint64_t USER_HEAD_OFFSET_HOME = USER_HEAD_OFFSET_HASH + SHA256_DIGEST_LENGTH;
+
 static const uint64_t NODE_HEAD_OFFSET_TYPE = 0;
 static const uint64_t NODE_HEAD_OFFSET_RIGHTS = 1;
 static const uint64_t NODE_HEAD_OFFSET_OWNER_GROUP_SIZE = 2;
