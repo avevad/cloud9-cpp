@@ -1,4 +1,3 @@
-sudo: required
 dist: bionic
 language: cpp
 
@@ -23,5 +22,4 @@ script:
   - export CXX=$(which g++-10)
   - cmake -DCMAKE_BUILD_TYPE=Release .. &&
     make -j$(nproc) &&
-    make install &&
     make test SHOW_INTERACTIVE_LOG=1
