@@ -284,8 +284,11 @@ void CloudServer::listener_routine(Session *session) {
                     std::string header;
                     header += type;
                     header += parent_head[NODE_HEAD_OFFSET_RIGHTS];
-                    header += name_len;
-                    header += name;
+                    header += parent_head[NODE_HEAD_OFFSET_OWNER_GROUP_SIZE];
+                    header += std::string(
+                            parent_head + NODE_HEAD_OFFSET_OWNER_GROUP,
+                            (size_t) *reinterpret_cast<uint8_t *>(parent_head + NODE_HEAD_OFFSET_OWNER_GROUP_SIZE)
+                    );
                     header += std::string(reinterpret_cast<const char *>(&parent), sizeof(Node));
                     head_stream << header;
                 }
