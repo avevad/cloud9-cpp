@@ -294,8 +294,8 @@ std::string node_desc(CloudClient *client, Node node, bool type_and_rights, bool
 }
 
 int shell(CloudClient *client, NetConnection *connection, const std::string &login, const std::string &host) {
-    const std::map<std::string, void (*)(CloudClient *, Node &, std::vector<std::string> &)> commands{
-            {"ls",  [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
+    const std::map<std::string, std::function<void(CloudClient *, Node &, std::vector<std::string> &)>> commands{
+            {"ls",    [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
                 std::string target;
                 std::string options;
                 for (auto &a : args) {
@@ -336,14 +336,14 @@ int shell(CloudClient *client, NetConnection *connection, const std::string &log
                     std::cout << node_desc(client, get_path_node(client, cwd, target), type_and_rights, size, hidden);
                 }
             }},
-            {"cd",  [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
+            {"cd",    [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
                 if (args.empty()) {
                     cwd = client->get_home();
                 } else if (args.size() == 1) {
                     cwd = get_path_node(client, cwd, args[0]);
                 } else std::cerr << "cd: too many arguments" << std::endl;
             }},
-            {"pwd", [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
+            {"pwd",   [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
                 if (!args.empty()) std::cerr << "pwd: too many arguments" << std::endl;
                 else {
                     std::cout << CLOUD_PATH_HOME << client->get_node_owner(cwd) << get_node_path(client, cwd)
@@ -371,7 +371,7 @@ int shell(CloudClient *client, NetConnection *connection, const std::string &log
                     std::cout << "#" << result << std::endl;
                 } else std::cerr << "node: too many arguments" << std::endl;
             }},
-            {"put", [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
+            {"put",   [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
                 std::vector<std::string> options;
                 std::vector<std::string> files;
                 for (auto &arg : args) {
@@ -467,6 +467,21 @@ int shell(CloudClient *client, NetConnection *connection, const std::string &log
                             uint8_t(s_rights[2] == '1' ? NODE_RIGHTS_ALL_READ : 0) |
                             uint8_t(s_rights[3] == '1' ? NODE_RIGHTS_ALL_WRITE : 0);
                     client->set_node_rights(target, rights);
+                }
+            }},
+            {"group", [login](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
+                if (args.empty()) {
+                    std::cerr << "group: not enough arguments" << std::endl;
+                } else {
+                    std::string cmd = args[0];
+                    if (cmd == "invite") {
+                        std::for_each(args.begin() + 1, args.end(), [client, login](auto user) {
+                            std::cout << user << " -> " << login << std::endl;
+                            client->group_invite(user);
+                        });
+                    } else {
+                        std::cerr << "group: unknown subcommand" << std::endl;
+                    }
                 }
             }}
     };
