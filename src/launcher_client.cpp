@@ -595,15 +595,14 @@ int main(int argc, const char **argv) {
     } else {
         CloudClient *client = nullptr;
         try {
-            client = new CloudClient(connection, login, [](void *ud) -> std::string {
-                const char *prompt = static_cast<const char *>(ud);
+            client = new CloudClient(connection, login, [prompt]() -> std::string {
                 std::cout << prompt;
                 std::cout << "\x1B[37m\x1B[47m\x1B[8m";
                 std::string password;
                 std::getline(std::cin, password);
                 std::cout << "\x1B[0m";
                 return password;
-            }, (void *) prompt.c_str());
+            });
         } catch (std::exception &exception) {
             std::cerr << "Authentication failed: " << exception.what() << std::endl;
             connection->close();

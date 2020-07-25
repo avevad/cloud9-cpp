@@ -32,7 +32,7 @@ private:
     uint32_t current_id = 0;
     bool connected = true;
 public:
-    CloudClient(NetConnection *net, const std::string &login, std::string (*password_callback)(void *), void *ud);
+    CloudClient(NetConnection *net, const std::string &login, const std::function<std::string()> &password_callback);
 
     ~CloudClient();
 

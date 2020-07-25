@@ -3,10 +3,11 @@
 #include "cloud_client.h"
 #include "cloud_common.h"
 
-CloudClient::CloudClient(NetConnection *net, const std::string &login, std::string (*password_callback)(void *),
-                         void *ud) : connection(net) {
+CloudClient::CloudClient(NetConnection *net, const std::string &login,
+                         const std::function<std::string()> &password_callback)
+        : connection(net) {
     send_uint16(net, INIT_CMD_AUTH);
-    std::string password = password_callback(ud);
+    std::string password = password_callback();
     size_t size = sizeof(uint8_t) + login.size() + password.size();
     send_uint64(net, size);
     send_uint8(net, login.size());
