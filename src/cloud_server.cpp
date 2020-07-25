@@ -640,6 +640,28 @@ void CloudServer::listener_routine(Session *session) {
                 log_response(session);
                 send_uint16(session->connection, REQUEST_OK);
                 send_uint64(session->connection, 0);
+            } else if (cmd == REQUEST_CMD_GROUP_INVITE) {
+                std::string user(body, size);
+                log_request(session, cmd, std::pair("user", user));
+                if (!std::filesystem::exists(get_user_head_path(user))) {
+                    log_error(session, REQUEST_ERR_NOT_FOUND);
+                    send_uint16(session->connection, REQUEST_ERR_NOT_FOUND);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                if (is_member(user, session->login)) {
+                    log_error(session, REQUEST_ERR_EXISTS);
+                    send_uint16(session->connection, REQUEST_ERR_EXISTS);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                std::ofstream user_file(get_user_head_path(user), std::fstream::out | std::fstream::app);
+                uint8_t length = session->login.length();
+                user_file.write(reinterpret_cast<char *>(&length), 1);
+                user_file << session->login;
+                log_response(session);
+                send_uint16(session->connection, REQUEST_OK);
+                send_uint64(session->connection, 0);
             } else {
                 log_request(session, cmd);
                 log_error(session, REQUEST_ERR_INVALID_CMD);
@@ -776,11 +798,11 @@ void CloudServer::close_fd(Session *session, CloudServer::Session::FileDescripto
     if (fd.mode & NODE_FD_MODE_WRITE) writers[fd.node] = nullptr;
 }
 
-std::string CloudServer::get_user_head_path(std::string user) {
+std::string CloudServer::get_user_head_path(const std::string &user) {
     return config.users_directory + PATH_DIV + user;
 }
 
-std::pair<const char *, size_t> CloudServer::get_user_head(std::string user) {
+std::pair<const char *, size_t> CloudServer::get_user_head(const std::string &user) {
     std::string user_file_path = get_user_head_path(user);
     if (!std::filesystem::exists(user_file_path)) return {nullptr, 0};
     std::ifstream user_file(user_file_path);
@@ -788,6 +810,25 @@ std::pair<const char *, size_t> CloudServer::get_user_head(std::string user) {
     char *ret = new char[user_string.size()];
     memcpy(ret, user_string.c_str(), user_string.size());
     return {ret, user_string.size()};
+}
+
+bool CloudServer::is_member(const std::string &user, const std::string &group) {
+    if (user == group) return true;
+    auto[user_head, user_size] = get_user_head(user);
+    const char *ptr = user_head + USER_HEAD_OFFSET_GROUPS;
+    bool res = false;
+    while (ptr < user_head + user_size) {
+        uint8_t length = *reinterpret_cast<const uint8_t *>(ptr);
+        ptr++;
+        std::string cur_group(ptr, length);
+        if (cur_group == group) {
+            res = true;
+            break;
+        }
+        ptr += length;
+    }
+    delete[] user_head;
+    return res;
 }
 
 CloudServer::Session::Session(NetConnection *connection) : connection(connection) {

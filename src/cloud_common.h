@@ -98,6 +98,12 @@ static uint64_t read_uint64(NetConnection *connection) {
     return buf_read_uint64(&buffer);
 }
 
+#define NODE_ID_LENGTH 16
+
+typedef struct {
+    uint8_t id[NODE_ID_LENGTH];
+} Node;
+
 static const char *LOGIN_CHARSET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_";
 
 static bool is_valid_login(const std::string &login) {
@@ -152,6 +158,7 @@ static const uint16_t REQUEST_CMD_GET_NODE_INFO = 11;
 static const uint16_t REQUEST_CMD_FD_READ_LONG = 12;
 static const uint16_t REQUEST_CMD_FD_WRITE_LONG = 13;
 static const uint16_t REQUEST_CMD_SET_NODE_RIGHTS = 14;
+static const uint16_t REQUEST_CMD_GROUP_INVITE = 15;
 static const uint16_t REQUEST_OK = 0;
 static const uint16_t REQUEST_ERR_BODY_TOO_LARGE = 1;
 static const uint16_t REQUEST_ERR_INVALID_CMD = 2;
@@ -176,6 +183,7 @@ static const uint64_t USER_PASSWORD_SALT_LENGTH = 32;
 static const uint64_t USER_HEAD_OFFSET_SALT = 0;
 static const uint64_t USER_HEAD_OFFSET_HASH = USER_PASSWORD_SALT_LENGTH;
 static const uint64_t USER_HEAD_OFFSET_HOME = USER_HEAD_OFFSET_HASH + SHA256_DIGEST_LENGTH;
+static const uint64_t USER_HEAD_OFFSET_GROUPS = USER_HEAD_OFFSET_HOME + sizeof(Node);
 
 static const uint64_t NODE_HEAD_OFFSET_TYPE = 0;
 static const uint64_t NODE_HEAD_OFFSET_RIGHTS = 1;
@@ -241,12 +249,6 @@ static std::string request_name(uint16_t request) {
     else if (request == REQUEST_CMD_SET_NODE_RIGHTS) return "SRGH";
     else return std::to_string(request);
 }
-
-#define NODE_ID_LENGTH 16
-
-typedef struct {
-    uint8_t id[NODE_ID_LENGTH];
-} Node;
 
 static bool operator==(const Node &a, const Node &b) {
     return std::memcmp(&a, &b, sizeof(Node)) == 0;

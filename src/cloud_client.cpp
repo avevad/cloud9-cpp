@@ -1,6 +1,5 @@
 #include <stdexcept>
 #include <functional>
-#include <iostream>
 #include "cloud_client.h"
 #include "cloud_common.h"
 
@@ -302,6 +301,19 @@ void CloudClient::set_node_rights(Node node, uint8_t rights) {
     send_uint64(connection, sizeof(Node) + 1);
     send_exact(connection, sizeof(Node), &node);
     send_uint8(connection, rights);
+    ServerResponse response = wait_response(current_id++, locker);
+    delete[] response.body;
+    if (response.status != REQUEST_OK) {
+        throw CloudRequestError(response.status);
+    }
+}
+
+void CloudClient::group_invite(const std::string &user) {
+    std::unique_lock<std::mutex> locker(api_lock);
+    send_uint32(connection, current_id);
+    send_uint16(connection, REQUEST_CMD_GROUP_INVITE);
+    send_uint64(connection, user.length());
+    send_exact(connection, user.length(), user.c_str());
     ServerResponse response = wait_response(current_id++, locker);
     delete[] response.body;
     if (response.status != REQUEST_OK) {

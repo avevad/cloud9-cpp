@@ -65,6 +65,8 @@ public:
 
     void listener_routine();
 
+    void group_invite(const std::string &user);
+
     ServerResponse wait_response(uint32_t id, std::unique_lock<std::mutex> &locker);
 };
 

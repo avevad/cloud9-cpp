@@ -85,9 +85,11 @@ private:
 
     void close_fd(Session *session, Session::FileDescriptor fd);
 
-    std::string get_user_head_path(std::string user);
+    std::string get_user_head_path(const std::string &user);
 
-    std::pair<const char *, size_t> get_user_head(std::string user);
+    std::pair<const char *, size_t> get_user_head(const std::string &user);
+
+    bool is_member(const std::string &user, const std::string &group);
 
     static std::string log_pair_to_str(const std::pair<std::string, std::string> &p) {
         return p.first + "='" + p.second + "'";
