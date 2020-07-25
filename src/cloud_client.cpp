@@ -322,6 +322,21 @@ void CloudClient::group_invite(const std::string &user) {
     }
 }
 
+std::string CloudClient::get_node_group(Node node) {
+    std::unique_lock<std::mutex> locker(api_lock);
+    send_uint32(connection, current_id);
+    send_uint16(connection, REQUEST_CMD_GET_NODE_GROUP);
+    send_uint64(connection, sizeof(Node));
+    send_exact(connection, sizeof(Node), &node);
+    ServerResponse response = wait_response(current_id++, locker);
+    if (response.status != REQUEST_OK) {
+        delete[] response.body;
+        throw CloudRequestError(response.status);
+    }
+    std::string group(response.body, response.size);
+    return group;
+}
+
 
 CloudRequestError::CloudRequestError(uint16_t status, std::string info) : desc(
         info.empty() ? request_status_string(status) : (request_status_string(status) + " (" + info + ")")),

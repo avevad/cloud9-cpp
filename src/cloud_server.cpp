@@ -665,6 +665,28 @@ void CloudServer::listener_routine(Session *session) {
                 log_response(session);
                 send_uint16(session->connection, REQUEST_OK);
                 send_uint64(session->connection, 0);
+            } else if (cmd == REQUEST_CMD_GET_NODE_GROUP) {
+                if (size != sizeof(Node)) {
+                    log_request(session, cmd);
+                    log_error(session, REQUEST_ERR_MALFORMED_CMD);
+                    send_uint16(session->connection, REQUEST_ERR_MALFORMED_CMD);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                Node node = *reinterpret_cast<Node *>(body);
+                log_request(session, cmd, std::pair("node", node2string(node)));
+                auto[node_head, node_size] = get_node_head(node);
+                if (!node_head) {
+                    log_error(session, REQUEST_ERR_MALFORMED_CMD);
+                    send_uint16(session->connection, REQUEST_ERR_MALFORMED_CMD);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                std::string group = get_node_group(node_head);
+                log_response(session, std::pair("group", group));
+                send_uint16(session->connection, REQUEST_OK);
+                send_uint64(session->connection, group.length());
+                send_exact(session->connection, group.length(), group.c_str());
             } else {
                 log_request(session, cmd);
                 log_error(session, REQUEST_ERR_INVALID_CMD);
