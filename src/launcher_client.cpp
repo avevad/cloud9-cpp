@@ -269,7 +269,7 @@ std::string get_node_name(CloudClient *client, Node node) {
     }
 }
 
-std::string node_desc(CloudClient *client, Node node, bool type_and_rights, bool size, bool hidden) {
+std::string node_desc(CloudClient *client, Node node, bool type_and_rights, bool size, bool hidden, bool group) {
     std::string result;
     std::string name = get_node_name(client, node);;
     if (name.starts_with('.') && !hidden) return "";
@@ -279,6 +279,10 @@ std::string node_desc(CloudClient *client, Node node, bool type_and_rights, bool
         else if (info.type == NODE_TYPE_DIRECTORY) result += 'd';
         else result += '?';
         result += rights2string(info.rights);
+        result += '\t';
+    }
+    if (group) {
+        result += client->get_node_group(node);
         result += '\t';
     }
     if (size) {
@@ -311,6 +315,7 @@ int shell(CloudClient *client, NetConnection *connection, const std::string &log
                 bool type_and_rights = false;
                 bool size = false;
                 bool hidden = false;
+                bool group = false;
                 for (auto o : options) {
                     if (o == 'm') {
                         type_and_rights = true;
@@ -318,8 +323,11 @@ int shell(CloudClient *client, NetConnection *connection, const std::string &log
                         size = true;
                     } else if (o == 'a') {
                         hidden = true;
+                    } else if (o == 'g') {
+                        group = true;
                     } else {
                         std::cerr << "ls: unknown option '" << o << "'" << std::endl;
+                        return;
                     }
                 }
                 if (target.empty() || target.ends_with(CLOUD_PATH_DIV)) {
@@ -330,10 +338,11 @@ int shell(CloudClient *client, NetConnection *connection, const std::string &log
                     });
                     std::sort(children.begin(), children.end());
                     for (auto[name, child] : children) {
-                        std::cout << node_desc(client, child, type_and_rights, size, hidden);
+                        std::cout << node_desc(client, child, type_and_rights, size, hidden, group);
                     }
                 } else {
-                    std::cout << node_desc(client, get_path_node(client, cwd, target), type_and_rights, size, hidden);
+                    std::cout << node_desc(client, get_path_node(client, cwd, target), type_and_rights, size, hidden,
+                                           group);
                 }
             }},
             {"cd",    [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
