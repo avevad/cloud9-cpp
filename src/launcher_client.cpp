@@ -525,7 +525,7 @@ int shell(CloudClient *client, NetConnection *connection, const std::string &log
 static const std::string OPTION_LONG_PORT = "port=";
 
 int main(int argc, const char **argv) {
-    signal(SIGPIPE, [](int) {});
+    signal(SIGPIPE, SIG_IGN);
     std::vector<std::string> args, options_long;
     std::string options_short;
     for (const char **arg = argv + 1; arg < argv + argc; arg++) {
