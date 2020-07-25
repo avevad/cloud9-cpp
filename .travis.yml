@@ -20,5 +20,7 @@ script:
   - cd cmake-build-release
   - export CC=$(which gcc-10)
   - export CXX=$(which g++-10)
-  - cmake -DCMAKE_BUILD_TYPE=Release ..
-  - make -j$(nproc)
+  - cmake -DCMAKE_BUILD_TYPE=Release .. &&
+    make -j$(nproc) &&
+    make install &&
+    make test SHOW_INTERACTIVE_LOG=1

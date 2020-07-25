@@ -4,6 +4,7 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include <fstream>
 #include <set>
 #include <mutex>
 #include <map>

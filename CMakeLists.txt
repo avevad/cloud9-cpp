@@ -13,12 +13,23 @@ find_package(Lua REQUIRED)
 include_directories(${LUA_INCLUDE_DIR})
 
 add_library(cloud9_common ${SRC_DIR}/networking_ssl.cpp ${SRC_DIR}/networking_tcp.cpp)
+add_library(cloud9_client ${SRC_DIR}/cloud_client.cpp)
+add_library(cloud9_server ${SRC_DIR}/cloud_server.cpp)
 
-add_executable(cloud9 ${SRC_DIR}/launcher_client.cpp ${SRC_DIR}/cloud_client.cpp)
-add_executable(cloud9d ${SRC_DIR}/launcher_server.cpp ${SRC_DIR}/cloud_server.cpp)
+add_executable(cloud9 ${SRC_DIR}/launcher_client.cpp)
+add_executable(cloud9d ${SRC_DIR}/launcher_server.cpp)
+add_executable(tester ${SRC_DIR}/test.cpp)
 
-target_link_libraries(cloud9 ${OPENSSL_LIBRARIES} cloud9_common)
-target_link_libraries(cloud9d ${OPENSSL_LIBRARIES} ${LUA_LIBRARY} cloud9_common)
+target_link_libraries(cloud9_common ${OPENSSL_LIBRARIES})
+target_link_libraries(cloud9_server ${LUA_LIBRARY})
+
+target_link_libraries(cloud9 cloud9_common cloud9_client)
+target_link_libraries(cloud9d cloud9_common cloud9_server)
+target_link_libraries(tester cloud9_common cloud9_client cloud9_server)
 
 install(TARGETS cloud9 DESTINATION bin)
 install(TARGETS cloud9d DESTINATION sbin)
+
+enable_testing()
+
+add_test(NAME sample_test COMMAND ./tester sample_test)
