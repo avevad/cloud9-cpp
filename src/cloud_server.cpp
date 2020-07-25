@@ -722,7 +722,10 @@ ReadWrite CloudServer::get_user_rights(Node node, const std::string &user) {
     uint8_t rights = *reinterpret_cast<const uint8_t *>(node_head + NODE_HEAD_OFFSET_RIGHTS);
     std::string owner = get_node_owner(node);
     if (owner == user) user_rights.read = user_rights.write = true;
-    //TODO: add group rights
+    if (is_member(user, get_node_group(node_head))) {
+        if (rights & NODE_RIGHTS_GROUP_READ) user_rights.read = true;
+        if (rights & NODE_RIGHTS_GROUP_WRITE) user_rights.write = true;
+    }
     if (rights & NODE_RIGHTS_ALL_READ) user_rights.read = true;
     if (rights & NODE_RIGHTS_ALL_WRITE) user_rights.write = true;
     delete[] node_head;
@@ -832,6 +835,11 @@ bool CloudServer::is_member(const std::string &user, const std::string &group) {
     }
     delete[] user_head;
     return res;
+}
+
+std::string CloudServer::get_node_group(const char *node_head) {
+    return std::string(node_head + NODE_HEAD_OFFSET_OWNER_GROUP,
+                       (size_t) *reinterpret_cast<const uint8_t *>(node_head + NODE_HEAD_OFFSET_OWNER_GROUP_SIZE));
 }
 
 CloudServer::Session::Session(NetConnection *connection) : connection(connection) {

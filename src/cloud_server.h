@@ -91,6 +91,8 @@ private:
 
     bool is_member(const std::string &user, const std::string &group);
 
+    std::string get_node_group(const char *node_head);
+
     static std::string log_pair_to_str(const std::pair<std::string, std::string> &p) {
         return p.first + "='" + p.second + "'";
     }
