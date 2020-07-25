@@ -1,17 +1,21 @@
 dist: bionic
-sudo: required
 language: cpp
-addons:
-  apt:
-    sources:
-      - ubuntu-toolchain-r-test
-    packages:
-      - liblua5.3-dev
-      - liblua5.3
-      - openssl
-      - gcc-10
-      - g++-10
-      - cmake
+
+matrix:
+  include:
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - liblua5.3-dev
+            - liblua5.3
+            - openssl
+            - gcc-10
+            - g++-10
+            - cmake
+
 script:
   - cd cmake-build-release
   - export CC=$(which gcc-10)
