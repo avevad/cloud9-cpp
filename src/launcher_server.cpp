@@ -14,10 +14,12 @@ extern "C" {
 #include "cloud_server.h"
 #include "server_config.h"
 
+NetConnection *connection = nullptr;
 CloudServer *server = nullptr;
 
 void server_shutdown() {
     delete server;
+    delete connection;
     if (!server) std::cout << "warning: server wasn't started" << std::endl;
 }
 

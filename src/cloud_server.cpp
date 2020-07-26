@@ -22,7 +22,6 @@ CloudServer::~CloudServer() {
     net->destroy();
     if (connector->joinable()) connector->join();
     delete connector;
-    delete net;
     for (Session *session : sessions) {
         session->connection->close();
     }

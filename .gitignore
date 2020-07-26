@@ -2,4 +2,8 @@ cmake-build-debug/*
 !cmake-build-debug/README.md
 cmake-build-release/*
 !cmake-build-release/README.md
+
 .idea
+
+testing/*
+!testing/test_cloud.tar

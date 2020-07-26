@@ -32,4 +32,4 @@ install(TARGETS cloud9d DESTINATION sbin)
 
 enable_testing()
 
-add_test(NAME sample_test COMMAND ./tester sample_test)
+add_test(NAME mknod_test COMMAND ./tester mknod)
