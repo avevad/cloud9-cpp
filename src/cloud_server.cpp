@@ -687,6 +687,49 @@ void CloudServer::listener_routine(Session *session) {
                 send_uint16(session->connection, REQUEST_OK);
                 send_uint64(session->connection, group.length());
                 send_exact(session->connection, group.length(), group.c_str());
+            } else if (cmd == REQUEST_CMD_SET_NODE_GROUP) {
+                if (size <= sizeof(Node)) {
+                    log_request(session, cmd);
+                    log_error(session, REQUEST_ERR_MALFORMED_CMD);
+                    send_uint16(session->connection, REQUEST_ERR_MALFORMED_CMD);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                Node node = *reinterpret_cast<Node *>(body);
+                std::string group(body + sizeof(Node), body + size);
+                log_request(session, cmd, std::pair("node", node2string(node)), std::pair("group", group));
+                auto[node_head_ptr, node_size] = get_node_head(node);
+                if (!node_head_ptr) {
+                    log_error(session, REQUEST_ERR_NOT_FOUND);
+                    send_uint16(session->connection, REQUEST_ERR_NOT_FOUND);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                std::string node_head(node_head_ptr, node_size);
+                delete[] node_head_ptr;
+                if (get_node_owner(node) != session->login) {
+                    log_error(session, REQUEST_ERR_FORBIDDEN);
+                    send_uint16(session->connection, REQUEST_ERR_FORBIDDEN);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                if (!is_member(session->login, group)) {
+                    log_error(session, REQUEST_ERR_FORBIDDEN);
+                    send_uint16(session->connection, REQUEST_ERR_FORBIDDEN);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                std::string node_head1 = node_head.substr(0, NODE_HEAD_OFFSET_OWNER_GROUP_SIZE);
+                std::string node_head2 = node_head.substr(
+                        NODE_HEAD_OFFSET_OWNER_GROUP + get_node_group(node_head.c_str()).length());
+                std::string node_head0 = " " + group;
+                node_head0[0] = group.length();
+                node_head = node_head1 + node_head0 + node_head2;
+                std::ofstream node_head_file(get_node_head_path(node));
+                node_head_file << node_head;
+                log_response(session);
+                send_uint16(session->connection, REQUEST_OK);
+                send_uint64(session->connection, 0);
             } else {
                 log_request(session, cmd);
                 log_error(session, REQUEST_ERR_INVALID_CMD);

@@ -69,6 +69,8 @@ public:
 
     std::string get_node_group(Node node);
 
+    void set_node_group(Node node, const std::string &group);
+
     ServerResponse wait_response(uint32_t id, std::unique_lock<std::mutex> &locker);
 };
 
