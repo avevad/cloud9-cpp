@@ -492,6 +492,18 @@ int shell(CloudClient *client, NetConnection *connection, const std::string &log
                         std::cerr << "group: unknown subcommand" << std::endl;
                     }
                 }
+            }},
+            {"chown", [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
+                if (args.size() < 2) {
+                    std::cerr << "chown: not enough arguments" << std::endl;
+                } else {
+                    std::string group = args[0];
+                    std::for_each(args.begin() + 1, args.end(), [client, cwd, group](auto path) {
+                        std::cout << path << " -> " << group << std::endl;
+                        Node node = get_path_node(client, cwd, path);
+                        client->set_node_group(node, group);
+                    });
+                }
             }}
     };
     Node cwd = client->get_home(login);
