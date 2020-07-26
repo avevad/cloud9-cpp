@@ -683,6 +683,7 @@ void CloudServer::listener_routine(Session *session) {
                     continue;
                 }
                 std::string group = get_node_group(node_head);
+                delete[] node_head;
                 log_response(session, std::pair("group", group));
                 send_uint16(session->connection, REQUEST_OK);
                 send_uint64(session->connection, group.length());
