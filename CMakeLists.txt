@@ -32,4 +32,8 @@ install(TARGETS cloud9d DESTINATION sbin)
 
 enable_testing()
 
-add_test(NAME mknod_test COMMAND ./tester mknod)
+list(APPEND TESTS make_node homes dirs)
+
+foreach (TEST IN LISTS TESTS)
+    add_test(NAME tester_${TEST}_test COMMAND ./tester ${TEST})
+endforeach ()
