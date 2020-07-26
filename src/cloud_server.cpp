@@ -113,6 +113,7 @@ void CloudServer::listener_routine(Session *session) {
                 } else {
                     auto[user_head, user_size] = get_user_head(session->login);
                     Node home = *reinterpret_cast<const Node *>(user_head + USER_HEAD_OFFSET_HOME);
+                    delete[] user_head;
                     log_response(session, std::pair("home", node2string(home)));
                     send_uint16(session->connection, REQUEST_OK);
                     send_uint64(session->connection, sizeof(Node));
