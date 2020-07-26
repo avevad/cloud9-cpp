@@ -105,13 +105,12 @@ void CloudServer::listener_routine(Session *session) {
             if (cmd == REQUEST_CMD_GET_HOME) {
                 std::string user = size == 0 ? session->login : std::string(body, size);
                 log_request(session, cmd, std::pair("user", user));
-                std::string user_file_path = config.users_directory + PATH_DIV + user;
-                if (!std::filesystem::is_regular_file(user_file_path)) {
+                auto[user_head, user_size] = get_user_head(user);
+                if (!user_head) {
                     log_error(session, REQUEST_ERR_NOT_FOUND);
                     send_uint16(session->connection, REQUEST_ERR_NOT_FOUND);
                     send_uint64(session->connection, 0);
                 } else {
-                    auto[user_head, user_size] = get_user_head(session->login);
                     Node home = *reinterpret_cast<const Node *>(user_head + USER_HEAD_OFFSET_HOME);
                     delete[] user_head;
                     log_response(session, std::pair("home", node2string(home)));
