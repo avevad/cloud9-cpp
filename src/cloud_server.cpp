@@ -1022,7 +1022,7 @@ void CloudServer::remove_from_group(const std::string &group, const std::string 
     while (pos < size) {
         uint8_t length = head[pos];
         pos++;
-        if (head.substr(pos, length) == user) {
+        if (head.substr(pos, length) == group) {
             std::ofstream head_stream(get_user_head_path(user));
             head_stream << head.substr(0, pos - 1) << head.substr(pos + length);
             return;
