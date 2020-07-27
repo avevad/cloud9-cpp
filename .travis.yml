@@ -1,14 +1,14 @@
 dist: bionic
 language: cpp
-arch:
-  - amd64
-  - arm64
-  - ppc64le
-  - s390x
 
 matrix:
   include:
     - os: linux
+      arch:
+        - amd64
+        - arm64
+        - ppc64le
+        - s390x
       addons:
         apt:
           sources:
