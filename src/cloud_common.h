@@ -262,6 +262,10 @@ static bool operator==(const Node &a, const Node &b) {
     return std::memcmp(&a, &b, sizeof(Node)) == 0;
 }
 
+static bool operator!=(const Node &a, const Node &b) {
+    return std::memcmp(&a, &b, sizeof(Node)) != 0;
+}
+
 static bool operator<(const Node &a, const Node &b) {
     return std::memcmp(&a, &b, sizeof(Node)) < 0;
 }

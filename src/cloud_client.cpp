@@ -60,7 +60,7 @@ void CloudClient::listener_routine() {
 }
 
 CloudClient::ServerResponse CloudClient::wait_response(uint32_t id, std::unique_lock<std::mutex> &locker) {
-    while (connected && !responses.contains(id)) response_notifier.wait(locker);
+    while (connected && responses.find(id) == responses.end()) response_notifier.wait(locker);
     if (!connected) throw std::runtime_error("not connected");
     ServerResponse response = responses[id];
     responses.erase(id);

@@ -272,7 +272,7 @@ std::string get_node_name(CloudClient *client, Node node) {
 std::string node_desc(CloudClient *client, Node node, bool type_and_rights, bool size, bool hidden, bool group) {
     std::string result;
     std::string name = get_node_name(client, node);;
-    if (name.starts_with('.') && !hidden) return "";
+    if (name.find('.' == 0) && !hidden) return "";
     NodeInfo info = client->get_node_info(node);
     if (type_and_rights) {
         if (info.type == NODE_TYPE_FILE) result += '-';
@@ -330,7 +330,7 @@ int shell(CloudClient *client, NetConnection *connection, const std::string &log
                         return;
                     }
                 }
-                if (target.empty() || target.ends_with(CLOUD_PATH_DIV)) {
+                if (target.empty() || target.find(CLOUD_PATH_DIV) == target.length() - 1) {
                     Node node = target.empty() ? cwd : get_path_node(client, cwd, target);
                     std::vector<std::pair<std::string, Node>> children;
                     client->list_directory(node, [&](const std::string &name, Node child) {
@@ -384,7 +384,7 @@ int shell(CloudClient *client, NetConnection *connection, const std::string &log
                 std::vector<std::string> options;
                 std::vector<std::string> files;
                 for (auto &arg : args) {
-                    if (arg.starts_with("-")) options.push_back(arg.substr(1));
+                    if (arg.find("-") == 0) options.push_back(arg.substr(1));
                     else files.push_back(arg);
                 }
                 bool info = true;
@@ -393,7 +393,7 @@ int shell(CloudClient *client, NetConnection *connection, const std::string &log
                 for (auto &option : options) {
                     if (option == "s") info = false;
                     else if (option == "r") recursive = true;
-                    else if (option.starts_with("b=")) {
+                    else if (option.find("b=") == 0) {
                         block_size = std::stoll(option.substr(2));
                     } else {
                         std::cerr << "put: unknown option " << option << std::endl;
@@ -421,7 +421,7 @@ int shell(CloudClient *client, NetConnection *connection, const std::string &log
                 std::vector<std::string> options;
                 std::vector<std::string> files;
                 for (auto &arg : args) {
-                    if (arg.starts_with("-")) options.push_back(arg.substr(1));
+                    if (arg.find("-") == 0) options.push_back(arg.substr(1));
                     else files.push_back(arg);
                 }
                 bool info = true;
@@ -430,7 +430,7 @@ int shell(CloudClient *client, NetConnection *connection, const std::string &log
                 for (auto &option : options) {
                     if (option == "s") info = false;
                     else if (option == "r") recursive = true;
-                    else if (option.starts_with("b=")) {
+                    else if (option.find("b=") == 0) {
                         block_size = std::stoll(option.substr(2));
                     } else {
                         std::cerr << "get: unknown option " << option << std::endl;

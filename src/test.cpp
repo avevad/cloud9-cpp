@@ -163,7 +163,7 @@ int main(int argc, char **argv) {
     std::srand(std::time(NULL));
     signal(SIGPIPE, SIG_IGN);
     if (chdir("../testing")) return 1;
-    if (argc == 0 || !tests.contains(argv[1])) {
+    if (argc == 0 || tests.find(argv[1]) == tests.end()) {
         std::cerr << "invalid test name" << std::endl;
         return 1;
     } else return !tests[argv[1]](argc - 1, argv + 2);

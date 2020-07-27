@@ -21,9 +21,9 @@ int main(int argc, const char **argv) {
     std::string options_short;
     for (const char **arg = argv + 1; arg < argv + argc; arg++) {
         std::string s(*arg);
-        if (s.starts_with("--")) {
+        if (s.find("--") == 0) {
             options_long.push_back(s.substr(2));
-        } else if (s.starts_with("-")) {
+        } else if (s.find("-") == 0) {
             options_short += s.substr(1);
         } else {
             args.push_back(s);
@@ -54,7 +54,7 @@ int main(int argc, const char **argv) {
     }
     for (std::string &o : options_long) {
         if (o.empty()) continue;
-        if (o.starts_with(OPTION_LONG_PORT)) {
+        if (o.find(OPTION_LONG_PORT) == 0) {
             std::string s_port = o.substr(OPTION_LONG_PORT.length());
             int i_port = std::stoi(s_port);
             if (i_port > int(uint16_t(-1))) {
