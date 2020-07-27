@@ -67,6 +67,8 @@ public:
 
     void group_invite(const std::string &user);
 
+    void remove_node(Node node);
+
     std::string get_node_group(Node node);
 
     ServerResponse wait_response(uint32_t id, std::unique_lock<std::mutex> &locker);
