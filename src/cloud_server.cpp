@@ -688,6 +688,103 @@ void CloudServer::listener_routine(Session *session) {
                 send_uint16(session->connection, REQUEST_OK);
                 send_uint64(session->connection, group.length());
                 send_exact(session->connection, group.length(), group.c_str());
+            } else if (cmd == REQUEST_CMD_DELETE_NODE) {
+                if (size != sizeof(Node)) {
+                    log_request(session, cmd);
+                    log_error(session, REQUEST_ERR_MALFORMED_CMD);
+                    send_uint16(session->connection, REQUEST_ERR_MALFORMED_CMD);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                Node node = *reinterpret_cast<Node *>(body);
+                log_request(session, cmd, std::pair("node", node2string(node)));
+                //node doesnt exists
+                if (!node_exists(node)) {
+                    log_error(session, REQUEST_ERR_NOT_FOUND);
+                    send_uint16(session->connection, REQUEST_ERR_NOT_FOUND);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                std::ifstream node_data_file(get_node_data_path(node));
+                std::string node_data((std::istreambuf_iterator<char>(node_data_file)),
+                                      std::istreambuf_iterator<char>());
+                //node is nonempty dir
+                auto[node_head, node_head_size] = get_node_head(node);
+                uint8_t type = *(node_head + NODE_HEAD_OFFSET_TYPE);
+                delete[] node_head;
+                if (type == NODE_TYPE_DIRECTORY && (node_data.size())) {
+                    log_error(session, REQUEST_ERR_DIR_NOT_EMPTY);
+                    send_uint16(session->connection, REQUEST_ERR_DIR_NOT_EMPTY);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                //no rights
+                if (!get_user_rights(node, session->login).write) {
+                    log_error(session, REQUEST_ERR_FORBIDDEN);
+                    send_uint16(session->connection, REQUEST_ERR_FORBIDDEN);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                //ishome
+                uint16_t error = REQUEST_OK;
+                Node parent;
+                bool ok = get_parent(node, parent, error);
+                if (!ok)
+                {
+                    log_error(session, REQUEST_ERR_FORBIDDEN);
+                    send_uint16(session->connection, REQUEST_ERR_FORBIDDEN);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                //cut parent link to node
+                auto[parent_head, parent_head_size] = get_node_head(parent);
+                auto[parent_data, parent_data_size] = get_node_data(parent);
+                std::string hex_name = node2string(node);
+                int cut_pos = -1, cut_sz = -1;
+                {
+                    auto *pos = parent_data;
+                    uint8_t child_name_len;
+                    while (pos < parent_data + parent_data_size) {
+                        Node child = *reinterpret_cast<Node *>(pos);
+                        if (node2string(child) == hex_name)
+                        {
+                            cut_pos = pos - parent_data;
+                            pos += sizeof(Node);
+                            child_name_len = *reinterpret_cast<uint8_t *>(pos);
+                            pos++;
+                            pos += child_name_len;
+                            cut_sz = pos - parent_data - cut_pos;
+                            break;
+                        }
+                        pos += sizeof(Node);
+                        child_name_len = *reinterpret_cast<uint8_t *>(pos);
+                        pos++;
+                        pos += child_name_len;
+                    }
+                    if (cut_pos == -1) {
+                        delete[] parent_data;
+                        delete[] parent_head;
+                        log_error(session, REQUEST_ERR_EXISTS);
+                        send_uint16(session->connection, REQUEST_ERR_EXISTS);
+                        send_uint64(session->connection, 0);
+                        continue;
+                    }
+                }
+                std::string parent_data_string(parent_data, parent_data_size);
+                std::string new_parent_data_string = parent_data_string.substr(0, cut_pos) + 
+                    parent_data_string.substr(cut_pos + cut_sz, parent_data_string.size() - cut_pos - cut_sz);
+                delete[] parent_data;
+                delete[] parent_head;
+                {
+                    std::ofstream parent_data_file(get_node_data_path(parent));
+                    parent_data_file << new_parent_data_string;
+                }
+                //del files char/data
+                std::filesystem::remove(get_node_data_path(node));
+                std::filesystem::remove(get_node_head_path(node));
+                log_response(session, std::pair("node", node2string(node)));
+                send_uint16(session->connection, REQUEST_OK);
+                send_uint64(session->connection, 0);
             } else {
                 log_request(session, cmd);
                 log_error(session, REQUEST_ERR_INVALID_CMD);
@@ -795,12 +892,10 @@ bool CloudServer::get_home_owner(Node node, uint16_t &error, std::string &owner)
 
 Node CloudServer::generate_node() {
     Node node;
-    size_t iter = 0;
-    while (iter++ == 0 || std::filesystem::is_regular_file(get_node_data_path(node))) {
-        for (unsigned char &b : node.id) {
+    do {
+        for (unsigned char &b : node.id)
             b = std::rand() % 0xFF;
-        }
-    }
+    } while (std::filesystem::is_regular_file(get_node_data_path(node)));
     return node;
 }
 
