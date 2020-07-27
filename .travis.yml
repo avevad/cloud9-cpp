@@ -1,25 +1,28 @@
 dist: bionic
 language: cpp
 
+addons:
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test
+    packages:
+      - liblua5.3-dev
+      - liblua5.3
+      - openssl
+      - gcc-10
+      - g++-10
+      - cmake
+
 matrix:
   include:
     - os: linux
-      arch:
-        - amd64
-        - arm64
-        - ppc64le
-        - s390x
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - liblua5.3-dev
-            - liblua5.3
-            - openssl
-            - gcc-10
-            - g++-10
-            - cmake
+      arch: amd64
+    - os: linux
+      arch: arm64
+    - os: linux
+      arch: ppc64le
+    - os: linux
+      arch: s390x
 
 script:
   - cd cmake-build-release
