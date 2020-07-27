@@ -377,6 +377,31 @@ void CloudClient::group_kick(const std::string &user) {
     }
 }
 
+void CloudClient::group_list(const std::function<void(std::string)> &callback) {
+    std::string groups;
+    {
+        std::unique_lock<std::mutex> locker(api_lock);
+        send_uint32(connection, current_id);
+        send_uint16(connection, REQUEST_CMD_GROUP_LIST);
+        send_uint64(connection, 0);
+        ServerResponse response = wait_response(current_id++, locker);
+        if (response.status != REQUEST_OK) {
+            delete[] response.body;
+            throw CloudRequestError(response.status);
+        }
+        groups = std::string(response.body, response.size);
+        delete[] response.body;
+    }
+    size_t pos = 0;
+    while (pos < groups.size()) {
+        uint8_t length = groups[pos];
+        pos++;
+        std::string group = groups.substr(pos, length);
+        callback(group);
+        pos += length;
+    }
+}
+
 
 CloudRequestError::CloudRequestError(uint16_t status, std::string info) : desc(
         info.empty() ? request_status_string(status) : (request_status_string(status) + " (" + info + ")")),

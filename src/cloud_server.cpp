@@ -839,6 +839,21 @@ void CloudServer::listener_routine(Session *session) {
                 remove_from_group(session->login, user);
                 send_uint16(session->connection, REQUEST_OK);
                 send_uint64(session->connection, 0);
+            } else if (cmd == REQUEST_CMD_GROUP_LIST) {
+                log_request(session, cmd);
+                if (size != 0) {
+                    log_request(session, cmd);
+                    log_error(session, REQUEST_ERR_MALFORMED_CMD);
+                    send_uint16(session->connection, REQUEST_ERR_MALFORMED_CMD);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                auto[head, size] = get_user_head(session->login);
+                std::string groups(head + USER_HEAD_OFFSET_GROUPS, head + size);
+                log_response(session, std::pair("groups_size", std::to_string(groups.length())));
+                send_uint16(session->connection, REQUEST_OK);
+                send_uint64(session->connection, groups.length());
+                send_exact(session->connection, groups.length(), groups.c_str());
             } else {
                 log_request(session, cmd);
                 log_error(session, REQUEST_ERR_INVALID_CMD);

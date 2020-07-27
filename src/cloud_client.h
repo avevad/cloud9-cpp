@@ -69,6 +69,8 @@ public:
 
     void group_kick(const std::string &user);
 
+    void group_list(const std::function<void(std::string)> &callback);
+
     void remove_node(Node node);
 
     std::string get_node_group(Node node);
