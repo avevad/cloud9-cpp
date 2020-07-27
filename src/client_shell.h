@@ -488,12 +488,17 @@ int shell(CloudClient *client, NetConnection *connection, const std::string &log
                             std::cout << user << " -> " << login << std::endl;
                             client->group_invite(user);
                         });
+                    } else if (cmd == "kick") {
+                        std::for_each(args.begin() + 1, args.end(), [client, login](auto user) {
+                            std::cout << "kick " << user << " from " << login << std::endl;
+                            client->group_kick(user);
+                        });
                     } else {
                         std::cerr << "group: unknown subcommand" << std::endl;
                     }
                 }
             }},
-            {"rm", [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
+            {"rm",    [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
                 if (args.empty()) std::cerr << "rm: not enough arguments" << std::endl;
                 else {
                     for (std::string &path: args) {
