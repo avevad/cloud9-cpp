@@ -402,6 +402,19 @@ void CloudClient::group_list(const std::function<void(std::string)> &callback) {
     }
 }
 
+void CloudClient::move_node(Node node, Node new_parent) {
+    std::unique_lock<std::mutex> locker(api_lock);
+    send_uint32(connection, current_id);
+    send_uint16(connection, REQUEST_CMD_MOVE_NODE);
+    send_uint64(connection, sizeof(Node) * 2);
+    send_exact(connection, sizeof(Node), &node);
+    send_exact(connection, sizeof(Node), &new_parent);
+    ServerResponse response = wait_response(current_id++, locker);
+    delete[] response.body;
+    if (response.status != REQUEST_OK) {
+        throw CloudRequestError(response.status);
+    }
+}
 
 CloudRequestError::CloudRequestError(uint16_t status, std::string info) : desc(
         info.empty() ? request_status_string(status) : (request_status_string(status) + " (" + info + ")")),

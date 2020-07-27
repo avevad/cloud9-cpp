@@ -77,6 +77,8 @@ public:
 
     void set_node_group(Node node, const std::string &group);
 
+    void move_node(Node node, Node new_parent);
+
     ServerResponse wait_response(uint32_t id, std::unique_lock<std::mutex> &locker);
 };
 
