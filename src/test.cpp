@@ -33,9 +33,10 @@ void start_test_server() {
 }
 
 
-std::pair<NetConnection *, CloudClient *> connect_test_client() {
+std::pair<NetConnection *, CloudClient *> connect_test_client(const std::string &login = TEST_SERVER_USER,
+                                                              const std::string &pass = TEST_SERVER_PASS) {
     auto *connection = new TCPConnection("localhost", TEST_SERVER_PORT);
-    auto *client = new CloudClient(connection, TEST_SERVER_USER, []() { return TEST_SERVER_PASS; });
+    auto *client = new CloudClient(connection, login, [&pass]() { return pass; });
     return {connection, client};
 }
 
@@ -108,10 +109,54 @@ bool test_dirs(int, char **) {
     return ok;
 }
 
+bool test_groups(int, char **) {
+    SIMPLE_TEST_INIT();
+    size_t count = 0;
+    client->group_list([&count](const std::string &) {
+        count++;
+    });
+    if (count) return false;
+    auto[connection1, client1] = connect_test_client(TEST_SERVER_USER1, TEST_SERVER_PASS1);
+    client1->group_invite(TEST_SERVER_USER);
+    count = 0;
+    bool ok = false;
+    client->group_list([&count, &ok](const std::string &group) {
+        count++;
+        if (group == TEST_SERVER_USER1) ok = true;
+    });
+    if (count != 1 || !ok) return false;
+    auto[connection2, client2] = connect_test_client(TEST_SERVER_USER2, TEST_SERVER_PASS2);
+    client2->group_invite(TEST_SERVER_USER);
+    delete client2;
+    delete connection2;
+    count = 0;
+    bool ok1 = false;
+    bool ok2 = false;
+    client->group_list([&count, &ok1, &ok2](const std::string &group) {
+        count++;
+        if (group == TEST_SERVER_USER1) ok1 = true;
+        if (group == TEST_SERVER_USER2) ok2 = true;
+    });
+    if (count != 2 || !ok1 || !ok2) return false;
+    client1->group_kick(TEST_SERVER_USER);
+    delete client1;
+    delete connection1;
+    count = 0;
+    ok = false;
+    client->group_list([&count, &ok](const std::string &group) {
+        count++;
+        if (group == TEST_SERVER_USER2) ok = true;
+    });
+    if (count != 1 && !ok) return false;
+    SIMPLE_TEST_CLEANUP();
+    return true;
+}
+
 std::map<std::string, std::function<bool(int, char **)>> tests{ // NOLINT(cert-err58-cpp)
         {"make_node", test_make_node},
         {"homes",     test_homes},
-        {"dirs",      test_dirs}
+        {"dirs",      test_dirs},
+        {"groups",    test_groups}
 };
 
 int main(int argc, char **argv) {
