@@ -8,7 +8,6 @@
 
 #define TEST_CLOUD_FILE "test_cloud.tar"
 #define TEST_CLOUD_DIR "test_cloud"
-#define TEST_CLOUD_CONFIG "config.lua"
 
 bool unpack_test_cloud() {
     return !system("bash -c \"tar -xf " TEST_CLOUD_FILE "\"");
@@ -26,8 +25,9 @@ CloudServer *cloud_server = nullptr;
 #define TEST_SERVER_PASS2 "b0b$12345"
 
 void start_test_server() {
+    chdir(TEST_CLOUD_DIR);
     LauncherConfig config;
-    load_config(TEST_CLOUD_DIR "/" TEST_CLOUD_CONFIG, config);
+    load_config(config);
     tcp_server = new TCPServer(TEST_SERVER_PORT);
     cloud_server = new CloudServer(tcp_server, config);
 }

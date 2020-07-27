@@ -38,13 +38,9 @@ int main(int argc, const char **argv) {
         std::cout << "server stopped, exiting normally..." << std::endl;
         exit(0);
     });
-    if (argc != 2) {
-        std::cerr << "invalid number of arguments" << std::endl;
-        return 1;
-    }
     LauncherConfig config;
     try {
-        load_config(argv[1], config);
+        load_config(config);
     } catch (std::exception &exception) {
         std::cerr << "failed to load configuration file: " << exception.what() << std::endl;
         return 1;
