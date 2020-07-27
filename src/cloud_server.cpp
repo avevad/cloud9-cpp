@@ -909,8 +909,6 @@ void CloudServer::listener_routine(Session *session) {
                 auto[parent_head, parent_head_size] = get_node_head(parent);
                 auto[parent_data, parent_data_size] = get_node_data(parent);
                 ssize_t cut_pos = -1, cut_sz = -1;
-                char *node_name;
-                uint8_t node_name_len;
                 {
                     uint8_t child_name_len;
                     auto *pos = parent_data;
@@ -919,11 +917,6 @@ void CloudServer::listener_routine(Session *session) {
                         pos += sizeof(Node);
                         child_name_len = *reinterpret_cast<uint8_t *>(pos);
                         pos++;
-                        if (child == node)
-                        {
-                            node_name_len = child_name_len;
-                            node_name = reinterpret_cast<char *>(pos);
-                        }
                         pos += child_name_len;
                         if (child == node) {
                             cut_pos = pos - child_name_len - 1 - sizeof(Node) - parent_data;
@@ -944,7 +937,7 @@ void CloudServer::listener_routine(Session *session) {
                 std::string new_parent_data_string =
                         parent_data_string.substr(0, cut_pos) +
                         parent_data_string.substr(cut_pos + cut_sz, parent_data_string.size() - cut_pos - cut_sz);
-                delete[] parent_data;
+                std::string about_node = parent_data_string.substr(cut_pos, cut_sz);
                 delete[] parent_head;
                 {
                     std::ofstream parent_data_file(get_node_data_path(parent));
@@ -954,15 +947,13 @@ void CloudServer::listener_routine(Session *session) {
                 auto[np_data, np_data_size] = get_node_data(new_parent);
                 std::string np_data_string(np_data, np_data_size);
                 delete[] np_data;
-                parent_data_string += std::string(reinterpret_cast<const char *>(&node), sizeof(Node));
-                parent_data_string += ' ';
-                parent_data_string.back() = node_name_len;
-                parent_data_string += std::string(node_name, node_name_len);
+                np_data_string += about_node;
+                std::cerr << np_data_string << std::endl;
                 {
-                    std::ofstream parent_data_file(get_node_data_path(parent));
-                    parent_data_file << parent_data_string;
+                    std::ofstream np_data_file(get_node_data_path(new_parent));
+                    np_data_file << np_data_string;
                 }
-                delete[] node_name;
+                delete[] parent_data;
                 log_response(session);
                 send_uint16(session->connection, REQUEST_OK);
                 send_uint64(session->connection, 0);
