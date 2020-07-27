@@ -272,7 +272,7 @@ std::string get_node_name(CloudClient *client, Node node) {
 std::string node_desc(CloudClient *client, Node node, bool type_and_rights, bool size, bool hidden, bool group) {
     std::string result;
     std::string name = get_node_name(client, node);;
-    if (name.find('.' == 0) && !hidden) return "";
+    if (name.find('.') == 0 && !hidden) return "";
     NodeInfo info = client->get_node_info(node);
     if (type_and_rights) {
         if (info.type == NODE_TYPE_FILE) result += '-';
