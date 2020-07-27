@@ -480,7 +480,11 @@ int shell(CloudClient *client, NetConnection *connection, const std::string &log
             }},
             {"group", [login](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
                 if (args.empty()) {
-                    std::cerr << "group: not enough arguments" << std::endl;
+                    std::cout << login << ":";
+                    client->group_list([](const std::string &group) {
+                        std::cout << " " << group;
+                    });
+                    std::cout << std::endl;
                 } else {
                     std::string cmd = args[0];
                     if (cmd == "invite") {
