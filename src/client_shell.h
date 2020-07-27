@@ -493,6 +493,15 @@ int shell(CloudClient *client, NetConnection *connection, const std::string &log
                     }
                 }
             }},
+            {"rm", [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
+                if (args.empty()) std::cerr << "rm: not enough arguments" << std::endl;
+                else {
+                    for (std::string &path: args) {
+                        Node node = get_path_node(client, cwd, path);
+                        client->remove_node(node);
+                    }
+                }
+            }},
             {"chown", [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
                 if (args.size() < 2) {
                     std::cerr << "chown: not enough arguments" << std::endl;
