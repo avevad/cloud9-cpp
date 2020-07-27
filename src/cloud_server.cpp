@@ -728,8 +728,7 @@ void CloudServer::listener_routine(Session *session) {
                 uint16_t error = REQUEST_OK;
                 Node parent;
                 bool ok = get_parent(node, parent, error);
-                if (!ok)
-                {
+                if (!ok) {
                     log_error(session, REQUEST_ERR_FORBIDDEN);
                     send_uint16(session->connection, REQUEST_ERR_FORBIDDEN);
                     send_uint64(session->connection, 0);
@@ -738,27 +737,21 @@ void CloudServer::listener_routine(Session *session) {
                 //cut parent link to node
                 auto[parent_head, parent_head_size] = get_node_head(parent);
                 auto[parent_data, parent_data_size] = get_node_data(parent);
-                std::string hex_name = node2string(node);
-                int cut_pos = -1, cut_sz = -1;
+                ssize_t cut_pos = -1, cut_sz = -1;
                 {
                     auto *pos = parent_data;
                     uint8_t child_name_len;
                     while (pos < parent_data + parent_data_size) {
                         Node child = *reinterpret_cast<Node *>(pos);
-                        if (node2string(child) == hex_name)
-                        {
-                            cut_pos = pos - parent_data;
-                            pos += sizeof(Node);
-                            child_name_len = *reinterpret_cast<uint8_t *>(pos);
-                            pos++;
-                            pos += child_name_len;
-                            cut_sz = pos - parent_data - cut_pos;
-                            break;
-                        }
                         pos += sizeof(Node);
                         child_name_len = *reinterpret_cast<uint8_t *>(pos);
                         pos++;
                         pos += child_name_len;
+                        if (child == node) {
+                            cut_pos = pos - child_name_len - 1 - sizeof(Node) - parent_data;
+                            cut_sz = pos - parent_data - cut_pos;
+                            break;
+                        }
                     }
                     if (cut_pos == -1) {
                         delete[] parent_data;
@@ -770,8 +763,9 @@ void CloudServer::listener_routine(Session *session) {
                     }
                 }
                 std::string parent_data_string(parent_data, parent_data_size);
-                std::string new_parent_data_string = parent_data_string.substr(0, cut_pos) +
-                    parent_data_string.substr(cut_pos + cut_sz, parent_data_string.size() - cut_pos - cut_sz);
+                std::string new_parent_data_string =
+                        parent_data_string.substr(0, cut_pos) +
+                        parent_data_string.substr(cut_pos + cut_sz, parent_data_string.size() - cut_pos - cut_sz);
                 delete[] parent_data;
                 delete[] parent_head;
                 {
