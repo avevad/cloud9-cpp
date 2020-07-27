@@ -94,6 +94,8 @@ private:
 
     std::string get_node_group(const char *node_head);
 
+    void remove_from_group(const std::string &group, const std::string &user);
+
     static std::string log_pair_to_str(const std::pair<std::string, std::string> &p) {
         return p.first + "='" + p.second + "'";
     }

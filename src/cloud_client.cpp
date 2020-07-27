@@ -364,6 +364,19 @@ void CloudClient::set_node_group(Node node, const std::string &group) {
     }
 }
 
+void CloudClient::group_kick(const std::string &user) {
+    std::unique_lock<std::mutex> locker(api_lock);
+    send_uint32(connection, current_id);
+    send_uint16(connection, REQUEST_CMD_GROUP_KICK);
+    send_uint64(connection, user.length());
+    send_exact(connection, user.length(), user.c_str());
+    ServerResponse response = wait_response(current_id++, locker);
+    delete[] response.body;
+    if (response.status != REQUEST_OK) {
+        throw CloudRequestError(response.status);
+    }
+}
+
 
 CloudRequestError::CloudRequestError(uint16_t status, std::string info) : desc(
         info.empty() ? request_status_string(status) : (request_status_string(status) + " (" + info + ")")),

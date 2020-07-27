@@ -775,7 +775,7 @@ void CloudServer::listener_routine(Session *session) {
                 //del files char/data
                 std::filesystem::remove(get_node_data_path(node));
                 std::filesystem::remove(get_node_head_path(node));
-                log_response(session, std::pair("node", node2string(node)));
+                log_response(session);
                 send_uint16(session->connection, REQUEST_OK);
                 send_uint64(session->connection, 0);
             } else if (cmd == REQUEST_CMD_SET_NODE_GROUP) {
@@ -819,6 +819,24 @@ void CloudServer::listener_routine(Session *session) {
                 std::ofstream node_head_file(get_node_head_path(node));
                 node_head_file << node_head;
                 log_response(session);
+                send_uint16(session->connection, REQUEST_OK);
+                send_uint64(session->connection, 0);
+            } else if (cmd == REQUEST_CMD_GROUP_KICK) {
+                std::string user(body, size);
+                log_request(session, cmd, std::pair("user", user));
+                if (user == session->login) {
+                    log_error(session, REQUEST_ERR_FORBIDDEN);
+                    send_uint16(session->connection, REQUEST_ERR_FORBIDDEN);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                if (!is_member(user, session->login)) {
+                    log_error(session, REQUEST_ERR_NOT_FOUND);
+                    send_uint16(session->connection, REQUEST_ERR_NOT_FOUND);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                remove_from_group(session->login, user);
                 send_uint16(session->connection, REQUEST_OK);
                 send_uint64(session->connection, 0);
             } else {
@@ -994,6 +1012,23 @@ bool CloudServer::is_member(const std::string &user, const std::string &group) {
 std::string CloudServer::get_node_group(const char *node_head) {
     return std::string(node_head + NODE_HEAD_OFFSET_OWNER_GROUP,
                        (size_t) *reinterpret_cast<const uint8_t *>(node_head + NODE_HEAD_OFFSET_OWNER_GROUP_SIZE));
+}
+
+void CloudServer::remove_from_group(const std::string &group, const std::string &user) {
+    auto[head_p, size] = get_user_head(user);
+    std::string head(head_p, size);
+    delete[] head_p;
+    size_t pos = USER_HEAD_OFFSET_GROUPS;
+    while (pos < size) {
+        uint8_t length = head[pos];
+        pos++;
+        if (head.substr(pos, length) == user) {
+            std::ofstream head_stream(get_user_head_path(user));
+            head_stream << head.substr(0, pos - 1) << head.substr(pos + length);
+            return;
+        }
+        pos += length;
+    }
 }
 
 CloudServer::Session::Session(NetConnection *connection) : connection(connection) {

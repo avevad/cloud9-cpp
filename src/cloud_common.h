@@ -162,6 +162,7 @@ static const uint16_t REQUEST_CMD_GET_NODE_GROUP = 15;
 static const uint16_t REQUEST_CMD_SET_NODE_GROUP = 16;
 static const uint16_t REQUEST_CMD_GROUP_INVITE = 17;
 static const uint16_t REQUEST_CMD_DELETE_NODE = 18;
+static const uint16_t REQUEST_CMD_GROUP_KICK = 19;
 static const uint16_t REQUEST_OK = 0;
 static const uint16_t REQUEST_ERR_BODY_TOO_LARGE = 1;
 static const uint16_t REQUEST_ERR_INVALID_CMD = 2;
