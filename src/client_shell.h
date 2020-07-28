@@ -533,6 +533,15 @@ int shell(CloudClient *client, NetConnection *connection, const std::string &log
                                       client->move_node(get_path_node(client, cwd, path), new_parent);
                                   });
                 }
+            }},
+            {"cp",    [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
+                if (args.size() != 2) {
+                    std::cerr << "cp: exactly 2 arguments expected" << std::endl;
+                } else {
+                    Node node = get_path_node(client, cwd, args[0]);
+                    std::string name = args[1];
+                    client->copy_node(node, name);
+                }
             }}
     };
     Node cwd = client->get_home(login);
