@@ -888,7 +888,7 @@ void CloudServer::listener_routine(Session *session) {
                     continue;
                 }
                 //no rights
-                if (!get_user_rights(node, session->login).write || 
+                if (!get_user_rights(node, session->login).write ||
                     !get_user_rights(new_parent, session->login).write) {
                     log_error(session, REQUEST_ERR_FORBIDDEN);
                     send_uint16(session->connection, REQUEST_ERR_FORBIDDEN);
@@ -900,6 +900,24 @@ void CloudServer::listener_routine(Session *session) {
                 Node parent;
                 bool ok = get_parent(node, parent, error);
                 if (!ok) {
+                    log_error(session, REQUEST_ERR_FORBIDDEN);
+                    send_uint16(session->connection, REQUEST_ERR_FORBIDDEN);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                // new_parent is subdir of node
+                Node cur = new_parent;
+                bool bad = false;
+                while (true) {
+                    if (cur == node) {
+                        bad = true;
+                        break;
+                    }
+                    if (!get_parent(cur, cur, error)) {
+                        break;
+                    }
+                }
+                if (bad) {
                     log_error(session, REQUEST_ERR_FORBIDDEN);
                     send_uint16(session->connection, REQUEST_ERR_FORBIDDEN);
                     send_uint64(session->connection, 0);
@@ -924,14 +942,30 @@ void CloudServer::listener_routine(Session *session) {
                             break;
                         }
                     }
-                    if (cut_pos == -1) {
-                        delete[] parent_data;
-                        delete[] parent_head;
-                        log_error(session, REQUEST_ERR_EXISTS);
-                        send_uint16(session->connection, REQUEST_ERR_EXISTS);
-                        send_uint64(session->connection, 0);
-                        continue;
+                }
+                auto[np_data, np_data_size] = get_node_data(new_parent);
+                std::string np_data_string(np_data, np_data_size);
+                delete[] np_data;
+                size_t pos = 0;
+                bad = false;
+                while (pos < np_data_size) {
+                    pos += sizeof(Node);
+                    uint8_t len = np_data_string[pos];
+                    pos++;
+                    if (np_data_string.substr(pos, len) ==
+                        std::string(parent_data + cut_pos + sizeof(Node) + 1, parent_data + cut_pos + cut_sz)) {
+                        bad = true;
+                        break;
                     }
+                    pos += len;
+                }
+                if (bad) {
+                    delete[] parent_data;
+                    delete[] parent_head;
+                    log_error(session, REQUEST_ERR_EXISTS);
+                    send_uint16(session->connection, REQUEST_ERR_EXISTS);
+                    send_uint64(session->connection, 0);
+                    continue;
                 }
                 std::string parent_data_string(parent_data, parent_data_size);
                 std::string new_parent_data_string =
@@ -944,16 +978,22 @@ void CloudServer::listener_routine(Session *session) {
                     parent_data_file << new_parent_data_string;
                 }
                 // add link of new_parent to node
-                auto[np_data, np_data_size] = get_node_data(new_parent);
-                std::string np_data_string(np_data, np_data_size);
-                delete[] np_data;
                 np_data_string += about_node;
-                std::cerr << np_data_string << std::endl;
                 {
                     std::ofstream np_data_file(get_node_data_path(new_parent));
                     np_data_file << np_data_string;
                 }
                 delete[] parent_data;
+                auto[node_head, node_size] = get_node_head(node);
+                std::memcpy(node_head + NODE_HEAD_OFFSET_OWNER_GROUP +
+                            *(reinterpret_cast<uint8_t *>(node_head + NODE_HEAD_OFFSET_OWNER_GROUP_SIZE)),
+                            &new_parent,
+                            sizeof(Node));
+                {
+                    std::ofstream node_head_file(get_node_head_path(node));
+                    node_head_file << std::string(node_head, node_size);
+                }
+                delete[] node_head;
                 log_response(session);
                 send_uint16(session->connection, REQUEST_OK);
                 send_uint64(session->connection, 0);
