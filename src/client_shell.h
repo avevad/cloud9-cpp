@@ -524,12 +524,14 @@ int shell(CloudClient *client, NetConnection *connection, const std::string &log
                 }
             }},
             {"mv",    [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
-                if (args.size() < 2) std::cerr << "rm: not enough arguments" << std::endl;
-                else if (args.size() > 2) std::cerr << "rm: too much arguments" << std::endl;
+                if (args.size() < 2) std::cerr << "mv: not enough arguments" << std::endl;
                 else {
-                    Node node = get_path_node(client, cwd, args[0]);
-                    Node new_parent = get_path_node(client, cwd, args[1]);
-                    client->move_node(node, new_parent);
+                    Node new_parent = get_path_node(client, cwd, args.back());
+                    std::for_each(args.begin(), args.end() - 1,
+                                  [&cwd, &args, client, new_parent](const std::string &path) {
+                                      std::cout << path << " -> " << args.back() << std::endl;
+                                      client->move_node(get_path_node(client, cwd, path), new_parent);
+                                  });
                 }
             }}
     };
