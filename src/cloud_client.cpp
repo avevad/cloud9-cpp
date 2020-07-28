@@ -340,7 +340,7 @@ std::string CloudClient::get_node_group(Node node) {
 void CloudClient::remove_node(Node node) {
     std::unique_lock<std::mutex> locker(api_lock);
     send_uint32(connection, current_id);
-    send_uint16(connection, REQUEST_CMD_DELETE_NODE);
+    send_uint16(connection, REQUEST_CMD_REMOVE_NODE);
     send_uint64(connection, sizeof(Node));
     send_exact(connection, sizeof(Node), &node);
     ServerResponse response = wait_response(current_id++, locker);
@@ -409,6 +409,20 @@ void CloudClient::move_node(Node node, Node new_parent) {
     send_uint64(connection, sizeof(Node) * 2);
     send_exact(connection, sizeof(Node), &node);
     send_exact(connection, sizeof(Node), &new_parent);
+    ServerResponse response = wait_response(current_id++, locker);
+    delete[] response.body;
+    if (response.status != REQUEST_OK) {
+        throw CloudRequestError(response.status);
+    }
+}
+
+void CloudClient::copy_node(Node node, const std::string &name) {
+    std::unique_lock<std::mutex> locker(api_lock);
+    send_uint32(connection, current_id);
+    send_uint16(connection, REQUEST_CMD_COPY_NODE);
+    send_uint64(connection, sizeof(Node) + name.length());
+    send_exact(connection, sizeof(Node), &node);
+    send_exact(connection, name.length(), name.c_str());
     ServerResponse response = wait_response(current_id++, locker);
     delete[] response.body;
     if (response.status != REQUEST_OK) {

@@ -96,6 +96,10 @@ private:
 
     void remove_from_group(const std::string &group, const std::string &user);
 
+    std::pair<ssize_t, ssize_t> find_child_by_node(const char *dir_data, size_t dir_data_size, Node node);
+
+    std::pair<ssize_t, ssize_t> find_child_by_name(const char *dir_data, size_t dir_data_size, const std::string &name);
+
     static std::string log_pair_to_str(const std::pair<std::string, std::string> &p) {
         return p.first + "='" + p.second + "'";
     }

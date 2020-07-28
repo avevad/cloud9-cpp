@@ -161,9 +161,10 @@ static const uint16_t REQUEST_CMD_SET_NODE_RIGHTS = 14;
 static const uint16_t REQUEST_CMD_GET_NODE_GROUP = 15;
 static const uint16_t REQUEST_CMD_SET_NODE_GROUP = 16;
 static const uint16_t REQUEST_CMD_GROUP_INVITE = 17;
-static const uint16_t REQUEST_CMD_DELETE_NODE = 18;
+static const uint16_t REQUEST_CMD_REMOVE_NODE = 18;
 static const uint16_t REQUEST_CMD_GROUP_KICK = 19;
 static const uint16_t REQUEST_CMD_GROUP_LIST = 20;
+static const uint16_t REQUEST_CMD_COPY_NODE = 21;
 static const uint16_t REQUEST_CMD_MOVE_NODE = 22;
 static const uint16_t REQUEST_OK = 0;
 static const uint16_t REQUEST_ERR_BODY_TOO_LARGE = 1;
@@ -183,7 +184,7 @@ static const uint16_t REQUEST_ERR_END_OF_FILE = 14;
 static const uint16_t REQUEST_ERR_NOT_SUPPORTED = 15;
 static const uint16_t REQUEST_ERR_READ_BLOCK_IS_TOO_LARGE = 16;
 static const uint16_t REQUEST_SWITCH_OK = 17;
-static const uint16_t REQUEST_ERR_DIR_NOT_EMPTY = 18;
+static const uint16_t REQUEST_ERR_DIRECTORY_IS_NOT_EMPTY = 18;
 
 static const uint64_t USER_PASSWORD_SALT_LENGTH = 32;
 
@@ -236,7 +237,7 @@ static std::string request_status_string(uint16_t status) {
     else if (status == REQUEST_ERR_NOT_SUPPORTED) return "operation not supported";
     else if (status == REQUEST_ERR_READ_BLOCK_IS_TOO_LARGE) return "block size is too big";
     else if (status == REQUEST_SWITCH_OK) return "switching to long data transfer mode";
-    else if (status == REQUEST_ERR_DIR_NOT_EMPTY) return "directory is not empty";
+    else if (status == REQUEST_ERR_DIRECTORY_IS_NOT_EMPTY) return "directory is not empty";
     else return "unknown request error (" + std::to_string(status) + ")";
 }
 
@@ -255,7 +256,14 @@ static std::string request_name(uint16_t request) {
     else if (request == REQUEST_CMD_FD_READ_LONG) return "FDRL";
     else if (request == REQUEST_CMD_FD_WRITE_LONG) return "FDWL";
     else if (request == REQUEST_CMD_SET_NODE_RIGHTS) return "SRGH";
-    else if (request == REQUEST_CMD_DELETE_NODE) return "DELN";
+    else if (request == REQUEST_CMD_REMOVE_NODE) return "REMV";
+    else if (request == REQUEST_CMD_GET_NODE_GROUP) return "GGRP";
+    else if (request == REQUEST_CMD_SET_NODE_GROUP) return "SGRP";
+    else if (request == REQUEST_CMD_GROUP_INVITE) return "INVT";
+    else if (request == REQUEST_CMD_GROUP_KICK) return "KICK";
+    else if (request == REQUEST_CMD_GROUP_LIST) return "GLST";
+    else if (request == REQUEST_CMD_COPY_NODE) return "COPY";
+    else if (request == REQUEST_CMD_MOVE_NODE) return "MOVE";
     else return std::to_string(request);
 }
 

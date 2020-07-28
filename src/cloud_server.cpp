@@ -687,7 +687,7 @@ void CloudServer::listener_routine(Session *session) {
                 send_uint16(session->connection, REQUEST_OK);
                 send_uint64(session->connection, group.length());
                 send_exact(session->connection, group.length(), group.c_str());
-            } else if (cmd == REQUEST_CMD_DELETE_NODE) {
+            } else if (cmd == REQUEST_CMD_REMOVE_NODE) {
                 if (size != sizeof(Node)) {
                     log_request(session, cmd);
                     log_error(session, REQUEST_ERR_MALFORMED_CMD);
@@ -706,15 +706,17 @@ void CloudServer::listener_routine(Session *session) {
                 }
                 // node is nonempty dir
                 auto[node_head, node_head_size] = get_node_head(node);
-                auto[node_data, node_data_size] = get_node_data(node);
                 uint8_t type = *(node_head + NODE_HEAD_OFFSET_TYPE);
                 delete[] node_head;
-                delete[] node_data;
-                if ((type == NODE_TYPE_DIRECTORY) && node_data_size) {
-                    log_error(session, REQUEST_ERR_DIR_NOT_EMPTY);
-                    send_uint16(session->connection, REQUEST_ERR_DIR_NOT_EMPTY);
-                    send_uint64(session->connection, 0);
-                    continue;
+                if (type == NODE_TYPE_DIRECTORY) {
+                    auto[node_data, node_data_size] = get_node_data(node);
+                    delete[] node_data;
+                    if (node_data_size) {
+                        log_error(session, REQUEST_ERR_DIRECTORY_IS_NOT_EMPTY);
+                        send_uint16(session->connection, REQUEST_ERR_DIRECTORY_IS_NOT_EMPTY);
+                        send_uint64(session->connection, 0);
+                        continue;
+                    }
                 }
                 // no rights
                 if (!get_user_rights(node, session->login).write) {
@@ -736,30 +738,14 @@ void CloudServer::listener_routine(Session *session) {
                 // cut parent link to node
                 auto[parent_head, parent_head_size] = get_node_head(parent);
                 auto[parent_data, parent_data_size] = get_node_data(parent);
-                ssize_t cut_pos = -1, cut_sz = -1;
-                {
-                    auto *pos = parent_data;
-                    uint8_t child_name_len;
-                    while (pos < parent_data + parent_data_size) {
-                        Node child = *reinterpret_cast<Node *>(pos);
-                        pos += sizeof(Node);
-                        child_name_len = *reinterpret_cast<uint8_t *>(pos);
-                        pos++;
-                        pos += child_name_len;
-                        if (child == node) {
-                            cut_pos = pos - child_name_len - 1 - sizeof(Node) - parent_data;
-                            cut_sz = pos - parent_data - cut_pos;
-                            break;
-                        }
-                    }
-                    if (cut_pos == -1) {
-                        delete[] parent_data;
-                        delete[] parent_head;
-                        log_error(session, REQUEST_ERR_EXISTS);
-                        send_uint16(session->connection, REQUEST_ERR_EXISTS);
-                        send_uint64(session->connection, 0);
-                        continue;
-                    }
+                auto[cut_pos, cut_sz] = find_child_by_node(parent_data, parent_data_size, node);
+                if (cut_pos == -1) {
+                    delete[] parent_data;
+                    delete[] parent_head;
+                    log_error(session, REQUEST_ERR_NOT_FOUND);
+                    send_uint16(session->connection, REQUEST_ERR_NOT_FOUND);
+                    send_uint64(session->connection, 0);
+                    continue;
                 }
                 std::string parent_data_string(parent_data, parent_data_size);
                 std::string new_parent_data_string =
@@ -887,19 +873,19 @@ void CloudServer::listener_routine(Session *session) {
                     send_uint64(session->connection, 0);
                     continue;
                 }
-                //no rights
-                if (!get_user_rights(node, session->login).write ||
-                    !get_user_rights(new_parent, session->login).write) {
-                    log_error(session, REQUEST_ERR_FORBIDDEN);
-                    send_uint16(session->connection, REQUEST_ERR_FORBIDDEN);
-                    send_uint64(session->connection, 0);
-                    continue;
-                }
                 // node is home
                 uint16_t error = REQUEST_OK;
                 Node parent;
                 bool ok = get_parent(node, parent, error);
                 if (!ok) {
+                    log_error(session, REQUEST_ERR_FORBIDDEN);
+                    send_uint16(session->connection, REQUEST_ERR_FORBIDDEN);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                //no rights
+                if (!get_user_rights(parent, session->login).write ||
+                    !get_user_rights(new_parent, session->login).write) {
                     log_error(session, REQUEST_ERR_FORBIDDEN);
                     send_uint16(session->connection, REQUEST_ERR_FORBIDDEN);
                     send_uint64(session->connection, 0);
@@ -926,40 +912,15 @@ void CloudServer::listener_routine(Session *session) {
                 // cut parent link to node
                 auto[parent_head, parent_head_size] = get_node_head(parent);
                 auto[parent_data, parent_data_size] = get_node_data(parent);
-                ssize_t cut_pos = -1, cut_sz = -1;
-                {
-                    uint8_t child_name_len;
-                    auto *pos = parent_data;
-                    while (pos < parent_data + parent_data_size) {
-                        Node child = *reinterpret_cast<Node *>(pos);
-                        pos += sizeof(Node);
-                        child_name_len = *reinterpret_cast<uint8_t *>(pos);
-                        pos++;
-                        pos += child_name_len;
-                        if (child == node) {
-                            cut_pos = pos - child_name_len - 1 - sizeof(Node) - parent_data;
-                            cut_sz = pos - parent_data - cut_pos;
-                            break;
-                        }
-                    }
-                }
+                auto[cut_pos, cut_sz] = find_child_by_node(parent_data, parent_data_size, node);
                 auto[np_data, np_data_size] = get_node_data(new_parent);
                 std::string np_data_string(np_data, np_data_size);
+                auto[child_pos, child_sz] = find_child_by_name(
+                        np_data, np_data_size,
+                        std::string(parent_data + cut_pos + sizeof(Node) + 1, parent_data + cut_pos + cut_sz)
+                );
                 delete[] np_data;
-                size_t pos = 0;
-                bad = false;
-                while (pos < np_data_size) {
-                    pos += sizeof(Node);
-                    uint8_t len = np_data_string[pos];
-                    pos++;
-                    if (np_data_string.substr(pos, len) ==
-                        std::string(parent_data + cut_pos + sizeof(Node) + 1, parent_data + cut_pos + cut_sz)) {
-                        bad = true;
-                        break;
-                    }
-                    pos += len;
-                }
-                if (bad) {
+                if (child_pos != -1) {
                     delete[] parent_data;
                     delete[] parent_head;
                     log_error(session, REQUEST_ERR_EXISTS);
@@ -994,6 +955,75 @@ void CloudServer::listener_routine(Session *session) {
                     node_head_file << std::string(node_head, node_size);
                 }
                 delete[] node_head;
+                log_response(session);
+                send_uint16(session->connection, REQUEST_OK);
+                send_uint64(session->connection, 0);
+            } else if (cmd == REQUEST_CMD_COPY_NODE) {
+                if (size < sizeof(Node)) {
+                    log_request(session, cmd);
+                    log_error(session, REQUEST_ERR_MALFORMED_CMD);
+                    send_uint16(session->connection, REQUEST_ERR_MALFORMED_CMD);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                Node node = *reinterpret_cast<Node *>(body);
+                std::string name(body + sizeof(Node), body + size);
+                log_request(session, cmd, std::pair("node", node2string(node)), std::pair("name", name));
+                if (!is_valid_name(name)) {
+                    log_error(session, REQUEST_ERR_INVALID_NAME);
+                    send_uint16(session->connection, REQUEST_ERR_INVALID_NAME);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                uint16_t error = 0;
+                Node parent;
+                if (!get_parent(node, parent, error)) {
+                    log_error(session, REQUEST_ERR_FORBIDDEN);
+                    send_uint16(session->connection, REQUEST_ERR_FORBIDDEN);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                auto[parent_data, parent_size] = get_node_data(parent);
+                std::string parent_data_string(parent_data, parent_size);
+                auto[child_pos, child_sz] = find_child_by_name(parent_data, parent_size, name);
+                delete[] parent_data;
+                if (child_pos != -1) {
+                    log_error(session, REQUEST_ERR_EXISTS);
+                    send_uint16(session->connection, REQUEST_ERR_EXISTS);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                if (!get_user_rights(parent, session->login).write) {
+                    log_error(session, REQUEST_ERR_FORBIDDEN);
+                    send_uint16(session->connection, REQUEST_ERR_FORBIDDEN);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                auto[node_head, node_head_size] = get_node_head(node);
+                uint8_t type = *reinterpret_cast<char *>(node_head + NODE_HEAD_OFFSET_TYPE);
+                delete[] node_head;
+                if (type == NODE_TYPE_DIRECTORY) {
+                    auto[node_data, node_data_size] = get_node_data(node);
+                    delete[] node_data;
+                    if (node_data_size) {
+                        log_error(session, REQUEST_ERR_DIRECTORY_IS_NOT_EMPTY);
+                        send_uint16(session->connection, REQUEST_ERR_DIRECTORY_IS_NOT_EMPTY);
+                        send_uint64(session->connection, 0);
+                        continue;
+                    }
+                }
+                Node clone = generate_node();
+                std::filesystem::copy(get_node_head_path(node), get_node_head_path(clone));
+                writers[clone] = session;
+                global_locker.unlock();
+                std::filesystem::copy(get_node_data_path(node), get_node_data_path(clone));
+                global_locker.lock();
+                writers.erase(clone);
+                parent_data_string += std::string(reinterpret_cast<char *>(&clone), sizeof(Node));
+                parent_data_string += name.length();
+                parent_data_string += name;
+                std::ofstream parent_data_file(get_node_data_path(parent));
+                parent_data_file << parent_data_string;
                 log_response(session);
                 send_uint16(session->connection, REQUEST_OK);
                 send_uint64(session->connection, 0);
@@ -1187,6 +1217,42 @@ void CloudServer::remove_from_group(const std::string &group, const std::string 
         }
         pos += length;
     }
+}
+
+std::pair<ssize_t, ssize_t> CloudServer::find_child_by_node(const char *dir_data, size_t dir_data_size, Node node) {
+    ssize_t cut_pos = -1, cut_sz = -1;
+    uint8_t child_name_len;
+    auto *pos = dir_data;
+    while (pos < dir_data + dir_data_size) {
+        Node child = *reinterpret_cast<const Node *>(pos);
+        pos += sizeof(Node);
+        child_name_len = *reinterpret_cast<const uint8_t *>(pos);
+        pos++;
+        pos += child_name_len;
+        if (child == node) {
+            cut_pos = pos - child_name_len - 1 - sizeof(Node) - dir_data;
+            cut_sz = pos - dir_data - cut_pos;
+            break;
+        }
+    }
+    return {cut_pos, cut_sz};
+}
+
+std::pair<ssize_t, ssize_t>
+CloudServer::find_child_by_name(const char *dir_data, size_t dir_data_size, const std::string &name) {
+    ssize_t child_pos = -1, child_sz = -1;
+    auto *pos = dir_data;
+    while (pos < dir_data + dir_data_size) {
+        pos += sizeof(Node);
+        uint8_t len = *reinterpret_cast<const uint8_t *>(pos);
+        pos++;
+        if (name == std::string(pos, len)) {
+            child_pos = pos - 1 - sizeof(Node) - dir_data;
+            child_sz = sizeof(Node) + 1 + len;
+            break;
+        }
+    }
+    return {child_pos, child_sz};
 }
 
 CloudServer::Session::Session(NetConnection *connection) : connection(connection) {
