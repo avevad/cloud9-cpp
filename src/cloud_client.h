@@ -79,7 +79,7 @@ public:
 
     void move_node(Node node, Node new_parent);
 
-    void copy_node(Node node, const std::string &name);
+    Node copy_node(Node node, const std::string &name);
 
     ServerResponse wait_response(uint32_t id, std::unique_lock<std::mutex> &locker);
 };

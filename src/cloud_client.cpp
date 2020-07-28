@@ -416,7 +416,7 @@ void CloudClient::move_node(Node node, Node new_parent) {
     }
 }
 
-void CloudClient::copy_node(Node node, const std::string &name) {
+Node CloudClient::copy_node(Node node, const std::string &name) {
     std::unique_lock<std::mutex> locker(api_lock);
     send_uint32(connection, current_id);
     send_uint16(connection, REQUEST_CMD_COPY_NODE);
@@ -424,10 +424,13 @@ void CloudClient::copy_node(Node node, const std::string &name) {
     send_exact(connection, sizeof(Node), &node);
     send_exact(connection, name.length(), name.c_str());
     ServerResponse response = wait_response(current_id++, locker);
-    delete[] response.body;
     if (response.status != REQUEST_OK) {
+        delete[] response.body;
         throw CloudRequestError(response.status);
     }
+    Node clone = *reinterpret_cast<Node *>(response.body);
+    delete[] response.body;
+    return clone;
 }
 
 CloudRequestError::CloudRequestError(uint16_t status, std::string info) : desc(

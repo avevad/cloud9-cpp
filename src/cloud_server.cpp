@@ -1026,7 +1026,8 @@ void CloudServer::listener_routine(Session *session) {
                 parent_data_file << parent_data_string;
                 log_response(session);
                 send_uint16(session->connection, REQUEST_OK);
-                send_uint64(session->connection, 0);
+                send_uint64(session->connection, sizeof(Node));
+                send_exact(session->connection, sizeof(Node), &clone);
             } else {
                 log_request(session, cmd);
                 log_error(session, REQUEST_ERR_INVALID_CMD);
