@@ -535,12 +535,19 @@ int shell(CloudClient *client, NetConnection *connection, const std::string &log
                 }
             }},
             {"cp",    [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
-                if (args.size() != 2) {
-                    std::cerr << "cp: exactly 2 arguments expected" << std::endl;
-                } else {
+                if (args.size() != 2) std::cerr << "cp: exactly 2 arguments expected" << std::endl;
+                else {
                     Node node = get_path_node(client, cwd, args[0]);
                     std::string name = args[1];
                     client->copy_node(node, name);
+                }
+            }},
+            {"rn",    [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
+                if (args.size() != 2) std::cerr << "rn: exactly 2 arguments expected" << std::endl;
+                else {
+                    Node node = get_path_node(client, cwd, args[0]);
+                    std::string name = args[1];
+                    client->rename_node(node, name);
                 }
             }}
     };
