@@ -72,6 +72,10 @@ TCPConnection::~TCPConnection() {
     }
 }
 
+void TCPConnection::flush() {
+
+}
+
 TCPServer::TCPServer(int port) {
     sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0) {

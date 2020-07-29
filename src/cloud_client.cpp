@@ -13,6 +13,7 @@ CloudClient::CloudClient(NetConnection *net, const std::string &login,
     send_uint8(net, login.size());
     send_exact(net, login.size(), login.c_str());
     send_exact(net, password.size(), password.c_str());
+    net->flush();
     uint16_t status = read_uint16(net);
     if (status != INIT_OK) {
         throw CloudInitError(status);
@@ -33,6 +34,7 @@ CloudClient::CloudClient(NetConnection *net, const std::string &login,
     send_uint8(net, login.length());
     send_exact(net, login.length(), login.c_str());
     send_exact(net, password.length(), password.c_str());
+    net->flush();
     uint16_t status = read_uint16(net);
     if (status != INIT_OK) {
         throw CloudInitError(status);
@@ -80,6 +82,7 @@ void CloudClient::listener_routine() {
 }
 
 CloudClient::ServerResponse CloudClient::wait_response(uint32_t id, std::unique_lock<std::mutex> &locker) {
+    connection->flush();
     while (connected && responses.find(id) == responses.end()) response_notifier.wait(locker);
     if (!connected) throw std::runtime_error("not connected");
     ServerResponse response = responses[id];

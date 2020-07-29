@@ -34,7 +34,7 @@ CloudServer::~CloudServer() {
 void CloudServer::connector_routine() {
     while (true) {
         try {
-            NetConnection *connection = net->accept();
+            NetConnection *connection = new BufferedConnection(1024 * 1024, net->accept());
             auto *session = new Session(connection);
             sessions.insert(session);
             auto *listener = new std::thread(&CloudServer::listener_routine, this, session);
@@ -49,7 +49,7 @@ void CloudServer::connector_routine() {
 void CloudServer::listener_routine(Session *session) {
     char *body = nullptr;
     try {
-#define INIT_ERR(err) {send_uint16(session->connection, err); throw std::runtime_error(init_status_string(err));}
+#define INIT_ERR(err) {send_uint16(session->connection, err); session->connection->flush(); throw std::runtime_error(init_status_string(err));}
         auto cmd = read_uint16(session->connection);
         auto size = read_uint64(session->connection);
         if (size > INIT_BODY_MAX_SIZE) INIT_ERR(INIT_ERR_BODY_TOO_LARGE);
@@ -119,6 +119,7 @@ void CloudServer::listener_routine(Session *session) {
     bool goodbye = false;
     try {
         while (true) {
+            session->connection->flush();
             auto id = read_uint32(session->connection);
             auto cmd = read_uint16(session->connection);
             auto size = read_uint64(session->connection);
@@ -584,6 +585,7 @@ void CloudServer::listener_routine(Session *session) {
                 }
                 send_uint16(session->connection, REQUEST_SWITCH_OK);
                 send_uint64(session->connection, 0);
+                session->connection->flush();
                 global_locker.unlock();
                 char *buffer = new char[MAX_READ_BLOCK_SIZE];
                 uint64_t done = 0;
@@ -625,6 +627,7 @@ void CloudServer::listener_routine(Session *session) {
                 }
                 send_uint16(session->connection, REQUEST_SWITCH_OK);
                 send_uint64(session->connection, 0);
+                session->connection->flush();
                 global_locker.unlock();
                 uint64_t done = 0;
                 char *buffer = new char[MAX_READ_BLOCK_SIZE];

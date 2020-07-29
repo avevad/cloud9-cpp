@@ -29,7 +29,7 @@ int main(int argc, const char **argv) {
         std::string s(*arg);
         if (s.find("--") == 0) {
             options_long.push_back(s.substr(2));
-        } else if (s.find("-") == 0) {
+        } else if (s.find('-') == 0) {
             options_short += s.substr(1);
         } else {
             args.push_back(s);
@@ -84,7 +84,7 @@ int main(int argc, const char **argv) {
     }
     NetConnection *connection = nullptr;
     try {
-        connection = new TCPConnection(host.c_str(), port);
+        connection = new BufferedConnection<TCPConnection>(1024 * 1024, host.c_str(), port);
     } catch (std::exception &exception) {
         std::cerr << exception.what() << std::endl;
         return 1;

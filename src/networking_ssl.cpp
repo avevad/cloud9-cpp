@@ -104,6 +104,10 @@ bool SSLConnection::is_valid() {
     return ssl != nullptr;
 }
 
+void SSLConnection::flush() {
+
+}
+
 SSLServer::SSLServer(int port, const char *cert, const char *key, pem_password_cb *password_cb, void *password_cb_ud)
         : cert(cert), key(key) {
     context = SSL_CTX_new(SSLv23_server_method());

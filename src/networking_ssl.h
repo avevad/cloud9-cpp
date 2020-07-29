@@ -29,6 +29,8 @@ public:
 
     bool is_valid() override;
 
+    void flush() override;
+
     ~SSLConnection() override;
 };
 
