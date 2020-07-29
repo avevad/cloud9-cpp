@@ -85,6 +85,7 @@ static const char *CONFIG_OPTION_NODES_HEAD_DIRECTORY = "cloud.nodes_head_direct
 static const char *CONFIG_OPTION_NODES_DATA_DIRECTORY = "cloud.nodes_data_directory";
 static const char *CONFIG_OPTION_ACCESS_LOG = "cloud.access_log";
 static const std::string CONFIG_DEFAULT_ACCESS_LOG = "";
+static const char *CONFIG_OPTION_INVITES_FILE = "cloud.invites_file";
 
 static const char *CONFIG_OPTION_LAUNCHER = "launcher";
 static const char *CONFIG_OPTION_SERVER_PORT = "launcher.server_port";
@@ -131,6 +132,7 @@ void load_config(LauncherConfig &config) {
     config.nodes_head_directory = global_get_config_string(state, CONFIG_OPTION_NODES_HEAD_DIRECTORY);
     config.nodes_data_directory = global_get_config_string(state, CONFIG_OPTION_NODES_DATA_DIRECTORY);
     config.access_log = global_get_config_string(state, CONFIG_OPTION_ACCESS_LOG, &CONFIG_DEFAULT_ACCESS_LOG);
+    config.invites_file = global_get_config_string(state, CONFIG_OPTION_INVITES_FILE);
 
     global_get_config_option(state, CONFIG_OPTION_LAUNCHER);
     if (lua_isnil(state, lua_gettop(state))) {

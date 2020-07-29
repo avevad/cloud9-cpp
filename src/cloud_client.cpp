@@ -20,6 +20,26 @@ CloudClient::CloudClient(NetConnection *net, const std::string &login,
     listener = std::thread([this]() { listener_routine(); });
 }
 
+CloudClient::CloudClient(NetConnection *net, const std::string &login,
+                         const std::function<std::string()> &invite_callback,
+                         const std::function<std::string()> &password_callback) : connection(net) {
+    send_uint16(net, INIT_CMD_REGISTER);
+    std::string invite = invite_callback();
+    std::string password = password_callback();
+    size_t size = 1 + invite.length() + 1 + login.length() + password.length();
+    send_uint64(net, size);
+    send_uint8(net, invite.length());
+    send_exact(net, invite.length(), invite.c_str());
+    send_uint8(net, login.length());
+    send_exact(net, login.length(), login.c_str());
+    send_exact(net, password.length(), password.c_str());
+    uint16_t status = read_uint16(net);
+    if (status != INIT_OK) {
+        throw CloudInitError(status);
+    }
+    listener = std::thread([this]() { listener_routine(); });
+}
+
 CloudClient::~CloudClient() {
     if (connected) {
         try {

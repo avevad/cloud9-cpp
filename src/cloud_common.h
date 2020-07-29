@@ -4,6 +4,7 @@
 #include <string>
 #include <cstring>
 #include <algorithm>
+#include <chrono>
 #include "networking.h"
 
 static void read_exact(NetConnection *connection, uint64_t size, void *buffer) {
@@ -136,13 +137,17 @@ static const char PATH_DIV = '/';
 static const char LOGIN_DIV = '@';
 
 static const uint64_t INIT_BODY_MAX_SIZE = 1024 * 8; // 8 KiB
+
 static const uint16_t INIT_CMD_AUTH = 1;
+static const uint16_t INIT_CMD_REGISTER = 2;
 
 static const uint16_t INIT_OK = 0;
 static const uint16_t INIT_ERR_BODY_TOO_LARGE = 1;
 static const uint16_t INIT_ERR_INVALID_CMD = 2;
 static const uint16_t INIT_ERR_AUTH_FAILED = 3;
 static const uint16_t INIT_ERR_MALFORMED_CMD = 4;
+static const uint16_t INIT_ERR_INVALID_INVITE_CODE = 5;
+static const uint16_t INIT_ERR_USER_EXISTS = 6;
 
 static const uint64_t REQUEST_BODY_MAX_SIZE = 1024 * 1024 * 8; // 8 MiB
 static const uint16_t REQUEST_CMD_GET_HOME = 1;
@@ -190,6 +195,15 @@ static const uint16_t REQUEST_SWITCH_OK = 17;
 static const uint16_t REQUEST_ERR_DIRECTORY_IS_NOT_EMPTY = 18;
 
 static const uint64_t USER_PASSWORD_SALT_LENGTH = 32;
+static std::string USER_PASSWORD_SALT_CHARSET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+static std::string generate_salt() {
+    std::string salt(USER_PASSWORD_SALT_LENGTH, ' ');
+    for (size_t i = 0; i < USER_PASSWORD_SALT_LENGTH; i++) {
+        salt[i] = USER_PASSWORD_SALT_CHARSET[rand() % USER_PASSWORD_SALT_CHARSET.length()];
+    }
+    return salt;
+}
 
 static const uint64_t USER_HEAD_OFFSET_SALT = 0;
 static const uint64_t USER_HEAD_OFFSET_HASH = USER_PASSWORD_SALT_LENGTH;
@@ -218,6 +232,8 @@ static std::string init_status_string(uint16_t status) {
     else if (status == INIT_ERR_INVALID_CMD) return "unknown init command";
     else if (status == INIT_ERR_AUTH_FAILED) return "access denied";
     else if (status == INIT_ERR_MALFORMED_CMD) return "malformed init command";
+    else if (status == INIT_ERR_INVALID_INVITE_CODE) return "invite code is invalid";
+    else if (status == INIT_ERR_USER_EXISTS) return "user exists";
     else return "unknown init error (" + std::to_string(status) + ")";
 }
 

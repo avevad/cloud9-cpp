@@ -1,10 +1,6 @@
 #include <cstring>
 #include <csignal>
 #include <vector>
-#include <map>
-#include <filesystem>
-#include <fstream>
-#include <sys/stat.h>
 #include "networking_ssl.h"
 #include "networking_tcp.h"
 #include "iostream"
@@ -14,6 +10,16 @@
 
 
 static const std::string OPTION_LONG_PORT = "port=";
+
+std::string prompt_password(const std::string &prompt) {
+    std::cout << prompt;
+    std::cout << "\x1B[37m\x1B[47m\x1B[8m";
+    std::string password;
+    std::getline(std::cin, password);
+    std::cout << "\x1B[0m";
+    std::cout.flush();
+    return password;
+}
 
 int main(int argc, const char **argv) {
     signal(SIGPIPE, SIG_IGN);
@@ -47,10 +53,15 @@ int main(int argc, const char **argv) {
         }
         host = target.substr(host_begin);
     }
+    bool registration = false;
     uint16_t port = CLOUD_DEFAULT_PORT;
     for (char o : options_short) {
-        std::cerr << "Unknown short option '" << o << "'" << std::endl;
-        return 1;
+        if (o == 'r') {
+            registration = true;
+        } else {
+            std::cerr << "Unknown short option '" << o << "'" << std::endl;
+            return 1;
+        }
     }
     for (std::string &o : options_long) {
         if (o.empty()) continue;
@@ -78,21 +89,40 @@ int main(int argc, const char **argv) {
         std::cerr << exception.what() << std::endl;
         return 1;
     }
-    std::string prompt = login + "@" + host + "'s password: ";
     int result;
-    if (login.empty()) {
-        std::cerr << "Not implemented yet" << std::endl; // TODO: implement user registering
-        result = 1;
+    CloudClient *client = nullptr;
+    if (registration) {
+        std::cout << "Registering " << login << " at " << host << std::endl;
+        try {
+            client = new CloudClient(connection, login,
+                                     []() -> std::string {
+                                         std::cout << "Enter your invitation code: ";
+                                         std::string invite;
+                                         if (!std::getline(std::cin, invite)) {
+                                             std::cout << std::endl << "Cancelled.";
+                                             exit(0);
+                                         }
+                                         return invite;
+                                     },
+                                     []() -> std::string {
+                                         std::string password1, password2;
+                                         do {
+                                             password1 = prompt_password("Enter new password: ");
+                                             password2 = prompt_password("Confirm the password: ");
+                                         } while (password1 != password2);
+                                         return password1;
+                                     });
+        } catch (std::exception &exception) {
+            std::cerr << "Registering failed: " << exception.what() << std::endl;
+            connection->close();
+            delete connection;
+            return 1;
+        }
     } else {
-        CloudClient *client = nullptr;
+        std::string prompt = "Password for " + login + "@" + host + ": ";
         try {
             client = new CloudClient(connection, login, [prompt]() -> std::string {
-                std::cout << prompt;
-                std::cout << "\x1B[37m\x1B[47m\x1B[8m";
-                std::string password;
-                std::getline(std::cin, password);
-                std::cout << "\x1B[0m";
-                return password;
+                return prompt_password(prompt);
             });
         } catch (std::exception &exception) {
             std::cerr << "Authentication failed: " << exception.what() << std::endl;
@@ -100,9 +130,9 @@ int main(int argc, const char **argv) {
             delete connection;
             return 1;
         }
-        result = shell(client, connection, login, host);
-        delete client;
     }
+    result = shell(client, connection, login, host);
+    delete client;
     connection->close();
     delete connection;
     return result;

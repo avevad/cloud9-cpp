@@ -63,6 +63,7 @@ void CloudServer::listener_routine(Session *session) {
             std::string password(body + sizeof(uint8_t) + login_length, body + size);
             if (!is_valid_login(session->login)) INIT_ERR(INIT_ERR_AUTH_FAILED);
             auto[user_head, user_size] = get_user_head(session->login);
+            if (!user_head) INIT_ERR(INIT_ERR_AUTH_FAILED);
             std::string salt(user_head + USER_HEAD_OFFSET_SALT, USER_PASSWORD_SALT_LENGTH);
             std::string password_salted = password + salt;
             char *sha256 = new char[SHA256_DIGEST_LENGTH];
@@ -73,6 +74,37 @@ void CloudServer::listener_routine(Session *session) {
             delete[] sha256;
             if (ok) send_uint16(session->connection, INIT_OK);
             else INIT_ERR(INIT_ERR_AUTH_FAILED);
+        } else if (cmd == INIT_CMD_REGISTER) {
+            if (size == 0) INIT_ERR(INIT_ERR_MALFORMED_CMD);
+            uint8_t invite_length = *reinterpret_cast<uint8_t *>(body);
+            std::string invite(body + 1, invite_length);
+            if (size <= 1 + invite_length) INIT_ERR(INIT_ERR_MALFORMED_CMD);
+            uint8_t login_length = *reinterpret_cast<uint8_t *>(body + 1 + invite_length);
+            std::string login(body + 1 + invite_length + 1, login_length);
+            std::string password(body + 1 + invite_length + 1 + login_length, body + size);
+            if (std::filesystem::exists(get_user_head_path(login))) INIT_ERR(INIT_ERR_USER_EXISTS);
+            if (!use_invite(invite)) INIT_ERR(INIT_ERR_INVALID_INVITE_CODE);
+            Node home = generate_node();
+            {
+                std::ofstream home_head(get_node_head_path(home));
+                std::ofstream home_data(get_node_data_path(home));
+                home_head << NODE_TYPE_DIRECTORY;
+                home_head << char(0);
+                home_head << char(login_length);
+                home_head << login;
+            }
+            std::ofstream user_file(get_user_head_path(login));
+            std::string salt = generate_salt();
+            user_file << salt;
+            std::string password_salted = password + salt;
+            char *sha256 = new char[SHA256_DIGEST_LENGTH];
+            SHA256(reinterpret_cast<const unsigned char *>(password_salted.c_str()), password_salted.length(),
+                   reinterpret_cast<unsigned char *>(sha256));
+            user_file << std::string(sha256, SHA256_DIGEST_LENGTH);
+            delete[] sha256;
+            user_file << std::string(reinterpret_cast<const char *>(&home), sizeof(Node));
+            session->login = login;
+            send_uint16(session->connection, INIT_OK);
         } else INIT_ERR(INIT_ERR_INVALID_CMD);
 #undef INIT_ERR
     } catch (std::exception &exception) {
@@ -1312,6 +1344,22 @@ CloudServer::find_child_by_name(const char *dir_data, size_t dir_data_size, cons
         }
     }
     return {child_pos, child_sz};
+}
+
+bool CloudServer::use_invite(const std::string &invite) {
+    bool ok = false;
+    std::string invites_string;
+    {
+        std::ifstream invites_file(config.invites_file);
+        for (std::string line; std::getline(invites_file, line);) {
+            if (line.find(invite + ' ') == 0 || line == invite) {
+                ok = true;
+            } else invites_string += line + '\n';
+        }
+    }
+    std::ofstream invites_file(config.invites_file);
+    invites_file << invites_string;
+    return ok;
 }
 
 CloudServer::Session::Session(NetConnection *connection) : connection(connection) {

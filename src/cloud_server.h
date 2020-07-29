@@ -19,6 +19,7 @@ public:
     std::string nodes_head_directory;
     std::string nodes_data_directory;
     std::string access_log;
+    std::string invites_file;
 
     CloudConfig();
 
@@ -99,6 +100,8 @@ private:
     std::pair<ssize_t, ssize_t> find_child_by_node(const char *dir_data, size_t dir_data_size, Node node);
 
     std::pair<ssize_t, ssize_t> find_child_by_name(const char *dir_data, size_t dir_data_size, const std::string &name);
+
+    bool use_invite(const std::string &invite);
 
     static std::string log_pair_to_str(const std::pair<std::string, std::string> &p) {
         return p.first + "='" + p.second + "'";

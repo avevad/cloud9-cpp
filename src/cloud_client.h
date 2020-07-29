@@ -34,6 +34,9 @@ private:
 public:
     CloudClient(NetConnection *net, const std::string &login, const std::function<std::string()> &password_callback);
 
+    CloudClient(NetConnection *net, const std::string &login, const std::function<std::string()> &invite_callback,
+                const std::function<std::string()> &password_callback);
+
     ~CloudClient();
 
     Node get_home(const std::string &user = "");
