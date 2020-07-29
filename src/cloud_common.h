@@ -137,6 +137,7 @@ static const char LOGIN_DIV = '@';
 
 static const uint64_t INIT_BODY_MAX_SIZE = 1024 * 8; // 8 KiB
 static const uint16_t INIT_CMD_AUTH = 1;
+
 static const uint16_t INIT_OK = 0;
 static const uint16_t INIT_ERR_BODY_TOO_LARGE = 1;
 static const uint16_t INIT_ERR_INVALID_CMD = 2;
@@ -166,6 +167,8 @@ static const uint16_t REQUEST_CMD_GROUP_KICK = 19;
 static const uint16_t REQUEST_CMD_GROUP_LIST = 20;
 static const uint16_t REQUEST_CMD_COPY_NODE = 21;
 static const uint16_t REQUEST_CMD_MOVE_NODE = 22;
+static const uint16_t REQUEST_CMD_RENAME_NODE = 23;
+
 static const uint16_t REQUEST_OK = 0;
 static const uint16_t REQUEST_ERR_BODY_TOO_LARGE = 1;
 static const uint16_t REQUEST_ERR_INVALID_CMD = 2;
@@ -264,6 +267,7 @@ static std::string request_name(uint16_t request) {
     else if (request == REQUEST_CMD_GROUP_LIST) return "GLST";
     else if (request == REQUEST_CMD_COPY_NODE) return "COPY";
     else if (request == REQUEST_CMD_MOVE_NODE) return "MOVE";
+    else if (request == REQUEST_CMD_MOVE_NODE) return "RENM";
     else return std::to_string(request);
 }
 

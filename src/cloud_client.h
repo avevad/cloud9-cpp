@@ -81,6 +81,8 @@ public:
 
     Node copy_node(Node node, const std::string &name);
 
+    void rename_node(Node node, const std::string &name);
+
     ServerResponse wait_response(uint32_t id, std::unique_lock<std::mutex> &locker);
 };
 

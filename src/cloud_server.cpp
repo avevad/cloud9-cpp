@@ -969,6 +969,12 @@ void CloudServer::listener_routine(Session *session) {
                 Node node = *reinterpret_cast<Node *>(body);
                 std::string name(body + sizeof(Node), body + size);
                 log_request(session, cmd, std::pair("node", node2string(node)), std::pair("name", name));
+                if (!node_exists(node)) {
+                    log_error(session, REQUEST_ERR_NOT_FOUND);
+                    send_uint16(session->connection, REQUEST_ERR_NOT_FOUND);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
                 if (!is_valid_name(name)) {
                     log_error(session, REQUEST_ERR_INVALID_NAME);
                     send_uint16(session->connection, REQUEST_ERR_INVALID_NAME);
@@ -1028,6 +1034,58 @@ void CloudServer::listener_routine(Session *session) {
                 send_uint16(session->connection, REQUEST_OK);
                 send_uint64(session->connection, sizeof(Node));
                 send_exact(session->connection, sizeof(Node), &clone);
+            } else if (cmd == REQUEST_CMD_RENAME_NODE) {
+                if (size < sizeof(Node)) {
+                    log_request(session, cmd);
+                    log_error(session, REQUEST_ERR_MALFORMED_CMD);
+                    send_uint16(session->connection, REQUEST_ERR_MALFORMED_CMD);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                Node node = *reinterpret_cast<Node *>(body);
+                std::string name(body + sizeof(Node), body + size);
+                log_request(session, cmd, std::pair("node", node2string(node)), std::pair("name", name));
+                if (!node_exists(node)) {
+                    log_error(session, REQUEST_ERR_NOT_FOUND);
+                    send_uint16(session->connection, REQUEST_ERR_NOT_FOUND);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                if (!is_valid_name(name)) {
+                    log_error(session, REQUEST_ERR_INVALID_NAME);
+                    send_uint16(session->connection, REQUEST_ERR_INVALID_NAME);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                uint16_t error = 0;
+                Node parent;
+                if (!get_parent(node, parent, error)) {
+                    log_error(session, REQUEST_ERR_FORBIDDEN);
+                    send_uint16(session->connection, REQUEST_ERR_FORBIDDEN);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                if (!get_user_rights(parent, session->login).write) {
+                    log_error(session, REQUEST_ERR_FORBIDDEN);
+                    send_uint16(session->connection, REQUEST_ERR_FORBIDDEN);
+                    send_uint64(session->connection, 0);
+                    continue;
+                }
+                auto[parent_data, parent_size] = get_node_data(parent);
+                auto[child_pos, child_sz] = find_child_by_node(parent_data, parent_size, node);
+                std::string parent_string(parent_data, parent_size);
+                delete[] parent_data;
+                std::string new_entry(reinterpret_cast<char *>(&node), sizeof(Node) + 1);
+                new_entry.back() = name.length();
+                new_entry += name;
+                parent_string =
+                        parent_string.substr(0, child_pos) +
+                        new_entry +
+                        parent_string.substr(child_pos + child_sz);
+                std::ofstream(get_node_data_path(parent)) << parent_string;
+                log_response(session);
+                send_uint16(session->connection, REQUEST_OK);
+                send_uint64(session->connection, 0);
             } else {
                 log_request(session, cmd);
                 log_error(session, REQUEST_ERR_INVALID_CMD);
