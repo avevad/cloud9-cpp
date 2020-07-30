@@ -24,6 +24,7 @@ void server_shutdown() {
 }
 
 int main(int argc, const char **argv) {
+    std::cout << "cloud9 version " << CLOUD9_REL_NAME << " (" << CLOUD9_REL_CODE << ")" << std::endl;
     std::srand(std::time(nullptr));
     signal(SIGPIPE, SIG_IGN);
     signal(SIGTERM, [](int) {

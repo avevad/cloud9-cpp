@@ -6,6 +6,7 @@
 CloudClient::CloudClient(NetConnection *net, const std::string &login,
                          const std::function<std::string()> &password_callback)
         : connection(net) {
+    negotiate(net);
     send_uint16(net, INIT_CMD_AUTH);
     std::string password = password_callback();
     size_t size = sizeof(uint8_t) + login.size() + password.size();
@@ -24,6 +25,7 @@ CloudClient::CloudClient(NetConnection *net, const std::string &login,
 CloudClient::CloudClient(NetConnection *net, const std::string &login,
                          const std::function<std::string()> &invite_callback,
                          const std::function<std::string()> &password_callback) : connection(net) {
+    negotiate(net);
     send_uint16(net, INIT_CMD_REGISTER);
     std::string invite = invite_callback();
     std::string password = password_callback();
@@ -469,6 +471,20 @@ void CloudClient::rename_node(Node node, const std::string &name) {
     if (response.status != REQUEST_OK) {
         throw CloudRequestError(response.status);
     }
+}
+
+void CloudClient::negotiate(NetConnection *net) {
+    char client_header[CLOUD9_FULL_HEADER_LENGTH];
+    memcpy(&client_header, CLOUD9_HEADER, CLOUD9_HEADER_LENGTH);
+    buf_send_uint16(client_header + CLOUD9_HEADER_LENGTH, CLOUD9_REL_CODE);
+    send_exact(net, CLOUD9_FULL_HEADER_LENGTH, &client_header);
+    net->flush();
+    char server_header[CLOUD9_FULL_HEADER_LENGTH];
+    read_exact(net, CLOUD9_FULL_HEADER_LENGTH, &server_header);
+    if (memcmp(&server_header, &client_header, CLOUD9_HEADER_LENGTH) != 0)
+        throw std::runtime_error("negotiation error: invalid header");
+    if (memcmp(&server_header, &client_header, CLOUD9_FULL_HEADER_LENGTH) != 0)
+        throw std::runtime_error("negotiation error: version mismatch");
 }
 
 CloudRequestError::CloudRequestError(uint16_t status, std::string info) : desc(

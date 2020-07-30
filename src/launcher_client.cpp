@@ -36,6 +36,19 @@ int main(int argc, const char **argv) {
             args.push_back(s);
         }
     }
+    bool registration = false;
+    uint16_t port = CLOUD_DEFAULT_PORT;
+    for (char o : options_short) {
+        if (o == 'r') {
+            registration = true;
+        } else if (o == 'v') {
+            std::cout << "cloud9 version " << CLOUD9_REL_NAME << " (" << CLOUD9_REL_CODE << ")" << std::endl;
+            return 0;
+        } else {
+            std::cerr << "Unknown short option '" << o << "'" << std::endl;
+            return 1;
+        }
+    }
     if (args.empty() || args[0].empty()) {
         std::cerr << "No target specified" << std::endl;
         return 1;
@@ -53,16 +66,6 @@ int main(int argc, const char **argv) {
             host_begin = login_end - target.begin() + 1;
         }
         host = target.substr(host_begin);
-    }
-    bool registration = false;
-    uint16_t port = CLOUD_DEFAULT_PORT;
-    for (char o : options_short) {
-        if (o == 'r') {
-            registration = true;
-        } else {
-            std::cerr << "Unknown short option '" << o << "'" << std::endl;
-            return 1;
-        }
     }
     size_t net_buffer_size = DEFAULT_NET_BUFFER_SIZE;
     for (std::string &o : options_long) {

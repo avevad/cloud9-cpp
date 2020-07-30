@@ -14,6 +14,8 @@ CloudServer::CloudServer(NetServer *net, const CloudConfig &config) : config(con
                                                                               [this] { connector_routine(); })) {
     if (!config.access_log.empty()) {
         access_log.open(config.access_log, std::ios_base::out | std::ios_base::app);
+        access_log << "-----------------------------------------------" << std::endl;
+        access_log << "[" << generate_timestamp() << "] Server started" << std::endl;
     }
 }
 
@@ -49,6 +51,17 @@ void CloudServer::connector_routine() {
 void CloudServer::listener_routine(Session *session) {
     char *body = nullptr;
     try {
+        char client_header[CLOUD9_FULL_HEADER_LENGTH];
+        read_exact(session->connection, CLOUD9_FULL_HEADER_LENGTH, &client_header);
+        if (memcmp(&client_header, CLOUD9_HEADER, CLOUD9_HEADER_LENGTH) != 0)
+            throw std::runtime_error("invalid header");
+        char server_header[CLOUD9_FULL_HEADER_LENGTH];
+        memcpy(&server_header, CLOUD9_HEADER, CLOUD9_HEADER_LENGTH);
+        buf_send_uint16(server_header + CLOUD9_HEADER_LENGTH, CLOUD9_REL_CODE);
+        send_exact(session->connection, CLOUD9_FULL_HEADER_LENGTH, &server_header);
+        session->connection->flush();
+        if (memcmp(&client_header, &server_header, CLOUD9_FULL_HEADER_LENGTH) != 0)
+            throw std::runtime_error("version mismatch");
 #define INIT_ERR(err) {log_error(session, err); send_uint16(session->connection, err); session->connection->flush(); throw std::runtime_error(init_status_string(err));}
         auto cmd = read_uint16(session->connection);
         auto size = read_uint64(session->connection);
@@ -113,7 +126,10 @@ void CloudServer::listener_routine(Session *session) {
         } else INIT_ERR(INIT_ERR_INVALID_CMD);
 #undef INIT_ERR
     } catch (std::exception &exception) {
-        if (!shutting_down) std::cerr << "failed to initialize client connection: " << exception.what() << std::endl;
+        if (!shutting_down) {
+            log_exit(session, exception.what());
+            std::cerr << "failed to initialize client connection: " << exception.what() << std::endl;
+        }
         delete[] body;
         session->connection->close();
         delete session->connection;

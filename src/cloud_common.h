@@ -7,6 +7,13 @@
 #include <chrono>
 #include "networking.h"
 
+static const uint16_t CLOUD9_REL_CODE = 1;
+static const char *CLOUD9_REL_NAME = "1.0.0";
+
+static const char *CLOUD9_HEADER = "\x89\x0D\x0A\x1A\xC1\xD9";
+static const size_t CLOUD9_HEADER_LENGTH = 6;
+static const size_t CLOUD9_FULL_HEADER_LENGTH = CLOUD9_HEADER_LENGTH + sizeof(CLOUD9_REL_CODE);
+
 static size_t DEFAULT_NET_BUFFER_SIZE = 1024 * 1024; // 1 MiB
 static size_t DEFAULT_DATA_BUFFER_SIZE = 1024 * 640; // 640 KiB
 
@@ -30,24 +37,35 @@ static uint8_t read_uint8(NetConnection *connection) {
     return n;
 }
 
-static void send_uint16(NetConnection *connection, uint16_t n) {
-    uint8_t buffer[2];
+static void buf_send_uint16(void *buffer, uint16_t n) {
+    auto *r_buffer = reinterpret_cast<uint8_t *>(buffer);
     for (int8_t i = 1; i >= 0; i--) {
-        buffer[i] = n & uint16_t(0xFF);
+        r_buffer[i] = n & uint16_t(0xFF);
         n >>= uint16_t(8);
     }
+}
+
+static void send_uint16(NetConnection *connection, uint16_t n) {
+    uint8_t buffer[2];
+    buf_send_uint16(&buffer, n);
     send_exact(connection, 2, &buffer);
+}
+
+static uint16_t buf_read_uint16(void *buffer) {
+    auto *r_buffer = reinterpret_cast<uint8_t *>(buffer);
+    uint16_t n = 0;
+    for (size_t i = 0; i < sizeof(uint16_t); i++) {
+        uint8_t e = r_buffer[i];
+        n <<= uint16_t(8);
+        n |= uint16_t(e);
+    }
+    return n;
 }
 
 static uint16_t read_uint16(NetConnection *connection) {
     uint8_t buffer[2];
     read_exact(connection, 2, &buffer);
-    uint16_t n = 0;
-    for (uint8_t e : buffer) {
-        n <<= uint16_t(8);
-        n |= uint16_t(e);
-    }
-    return n;
+    return buf_read_uint16(buffer);
 }
 
 static void send_uint32(NetConnection *connection, uint32_t n) {

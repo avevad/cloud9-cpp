@@ -31,6 +31,9 @@ private:
     std::map<uint32_t, ServerResponse> responses;
     uint32_t current_id = 0;
     bool connected = true;
+
+    static void negotiate(NetConnection *net);
+
 public:
     CloudClient(NetConnection *net, const std::string &login, const std::function<std::string()> &password_callback);
 
