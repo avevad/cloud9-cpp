@@ -45,8 +45,9 @@ private:
         std::string login;
         std::vector<FileDescriptor> fds;
         std::mutex lock;
+        size_t id;
 
-        explicit Session(NetConnection *connection);
+        Session(NetConnection *connection, size_t id);
     };
 
 private:
@@ -60,6 +61,7 @@ private:
     std::map<Node, std::set<Session *>> readers;
     std::map<Node, Session *> writers;
     std::ofstream access_log;
+    size_t session_id = 0;
 
     void connector_routine();
 
@@ -110,7 +112,9 @@ private:
     template<typename... P>
     void log_request(Session *session, uint16_t request, P... pairs) {
         if (config.access_log.empty()) return;
+        access_log << "[" << generate_timestamp() << "] ";
         std::string s_pairs[]{log_pair_to_str(pairs)...};
+        access_log << session->id << " ";
         access_log << session->login << "\tREQ " << request_name(request);
         for (auto &s_p : s_pairs) access_log << " " << s_p;
         access_log << std::endl;
@@ -119,7 +123,9 @@ private:
     template<typename... P>
     void log_error(Session *session, uint16_t status, P... pairs) {
         if (config.access_log.empty()) return;
+        access_log << "[" << generate_timestamp() << "] ";
         std::string s_pairs[]{log_pair_to_str(pairs)...};
+        access_log << session->id << " ";
         access_log << session->login << "\tERR '" << request_status_string(status) << "'";
         for (auto &s_p : s_pairs) access_log << " " << s_p;
         access_log << std::endl;
@@ -128,9 +134,31 @@ private:
     template<typename... P>
     void log_response(Session *session, P... pairs) {
         if (config.access_log.empty()) return;
+        access_log << "[" << generate_timestamp() << "] ";
         std::string s_pairs[]{log_pair_to_str(pairs)...};
+        access_log << session->id << " ";
         access_log << session->login << "\tANS";
         for (auto &s_p : s_pairs) access_log << " " << s_p;
+        access_log << std::endl;
+    }
+
+    template<typename... P>
+    void log_init(Session *session, P... pairs) {
+        if (config.access_log.empty()) return;
+        access_log << "[" << generate_timestamp() << "] ";
+        std::string s_pairs[]{log_pair_to_str(pairs)...};
+        access_log << session->id << " ";
+        access_log << "\tINI";
+        for (auto &s_p : s_pairs) access_log << " " << s_p;
+        access_log << std::endl;
+    }
+
+    void log_exit(Session *session, const std::string &reason) {
+        if (config.access_log.empty()) return;
+        access_log << "[" << generate_timestamp() << "] ";
+        access_log << session->id << " ";
+        access_log << "\tBYE ";
+        access_log << "\"" << reason << "\"";
         access_log << std::endl;
     }
 

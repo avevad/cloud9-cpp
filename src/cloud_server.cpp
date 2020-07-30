@@ -35,7 +35,7 @@ void CloudServer::connector_routine() {
     while (true) {
         try {
             NetConnection *connection = new BufferedConnection(config.net_buffer_size, net->accept());
-            auto *session = new Session(connection);
+            auto *session = new Session(connection, session_id++);
             sessions.insert(session);
             auto *listener = new std::thread(&CloudServer::listener_routine, this, session);
             listeners.push_back(listener);
@@ -49,7 +49,7 @@ void CloudServer::connector_routine() {
 void CloudServer::listener_routine(Session *session) {
     char *body = nullptr;
     try {
-#define INIT_ERR(err) {send_uint16(session->connection, err); session->connection->flush(); throw std::runtime_error(init_status_string(err));}
+#define INIT_ERR(err) {log_error(session, err); send_uint16(session->connection, err); session->connection->flush(); throw std::runtime_error(init_status_string(err));}
         auto cmd = read_uint16(session->connection);
         auto size = read_uint64(session->connection);
         if (size > INIT_BODY_MAX_SIZE) INIT_ERR(INIT_ERR_BODY_TOO_LARGE);
@@ -61,6 +61,7 @@ void CloudServer::listener_routine(Session *session) {
             if (login_length > size - sizeof(uint8_t)) INIT_ERR(INIT_ERR_MALFORMED_CMD);
             session->login = std::string(body + sizeof(uint8_t), login_length);
             std::string password(body + sizeof(uint8_t) + login_length, body + size);
+            log_init(session, std::pair("login", session->login));
             if (!is_valid_login(session->login)) INIT_ERR(INIT_ERR_AUTH_FAILED);
             auto[user_head, user_size] = get_user_head(session->login);
             if (!user_head) INIT_ERR(INIT_ERR_AUTH_FAILED);
@@ -72,8 +73,10 @@ void CloudServer::listener_routine(Session *session) {
             bool ok = memcmp(sha256, user_head + USER_HEAD_OFFSET_HASH, SHA256_DIGEST_LENGTH) == 0;
             delete[] user_head;
             delete[] sha256;
-            if (ok) send_uint16(session->connection, INIT_OK);
-            else INIT_ERR(INIT_ERR_AUTH_FAILED);
+            if (ok) {
+                log_response(session);
+                send_uint16(session->connection, INIT_OK);
+            } else INIT_ERR(INIT_ERR_AUTH_FAILED);
         } else if (cmd == INIT_CMD_REGISTER) {
             if (size == 0) INIT_ERR(INIT_ERR_MALFORMED_CMD);
             uint8_t invite_length = *reinterpret_cast<uint8_t *>(body);
@@ -82,6 +85,7 @@ void CloudServer::listener_routine(Session *session) {
             uint8_t login_length = *reinterpret_cast<uint8_t *>(body + 1 + invite_length);
             std::string login(body + 1 + invite_length + 1, login_length);
             std::string password(body + 1 + invite_length + 1 + login_length, body + size);
+            log_init(session, std::pair("invite", invite), std::pair("login", login));
             if (std::filesystem::exists(get_user_head_path(login))) INIT_ERR(INIT_ERR_USER_EXISTS);
             if (!use_invite(invite)) INIT_ERR(INIT_ERR_INVALID_INVITE_CODE);
             Node home = generate_node();
@@ -104,6 +108,7 @@ void CloudServer::listener_routine(Session *session) {
             delete[] sha256;
             user_file << std::string(reinterpret_cast<const char *>(&home), sizeof(Node));
             session->login = login;
+            log_response(session);
             send_uint16(session->connection, INIT_OK);
         } else INIT_ERR(INIT_ERR_INVALID_CMD);
 #undef INIT_ERR
@@ -194,6 +199,7 @@ void CloudServer::listener_routine(Session *session) {
                 log_request(session, REQUEST_CMD_GOODBYE);
                 goodbye = true;
                 log_response(session);
+                log_exit(session, "leaving by own choice");
                 send_uint16(session->connection, REQUEST_OK);
                 send_uint64(session->connection, size);
                 send_exact(session->connection, size, body);
@@ -1130,9 +1136,11 @@ void CloudServer::listener_routine(Session *session) {
             }
         }
     } catch (std::exception &exception) {
-        if (!shutting_down && !goodbye)
+        if (!shutting_down && !goodbye) {
+            log_exit(session, exception.what());
             std::cerr << "'" << session->login << "' listener stopped with exception: " << exception.what()
                       << std::endl;
+        }
     }
     std::unique_lock locker(lock);
     for (Session::FileDescriptor fd : session->fds) {
@@ -1366,6 +1374,6 @@ bool CloudServer::use_invite(const std::string &invite) {
     return ok;
 }
 
-CloudServer::Session::Session(NetConnection *connection) : connection(connection) {
+CloudServer::Session::Session(NetConnection *connection, size_t id) : connection(connection), id(id) {
 
 }

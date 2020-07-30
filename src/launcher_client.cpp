@@ -70,7 +70,7 @@ int main(int argc, const char **argv) {
         if (o.find(OPTION_LONG_PORT) == 0) {
             std::string s_port = o.substr(OPTION_LONG_PORT.length());
             if (!is_number(s_port)) {
-                std::cerr << "Port must be a number";
+                std::cerr << "Port must be a number" << std::endl;
                 return 1;
             }
             int i_port = std::stoi(s_port);
@@ -86,7 +86,7 @@ int main(int argc, const char **argv) {
         } else if (o.find(OPTION_LONG_NET_BUFFER_SIZE) == 0) {
             std::string s_size = o.substr(OPTION_LONG_NET_BUFFER_SIZE.length());
             if (!is_number(s_size)) {
-                std::cerr << "Network buffer size must be a number";
+                std::cerr << "Network buffer size must be a number" << std::endl;
                 return 1;
             }
             size_t size = std::stoll(s_size);

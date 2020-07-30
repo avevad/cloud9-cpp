@@ -382,4 +382,10 @@ static std::string rights2string(uint8_t rights) {
                        });
 }
 
+static std::string generate_timestamp() {
+    std::time_t time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    std::string time_c = std::ctime(&time);
+    return time_c.substr(0, time_c.length() - 1);
+}
+
 #endif //CLOUD9_CLOUD_COMMON_H
