@@ -11,8 +11,6 @@
 #include "networking.h"
 #include "cloud_common.h"
 
-#define MAX_READ_BLOCK_SIZE uint32_t(1024 * 1024 * 32) // 32 MiB
-
 class CloudConfig {
 public:
     std::string users_directory;
@@ -20,15 +18,17 @@ public:
     std::string nodes_data_directory;
     std::string access_log;
     std::string invites_file;
+    size_t data_buffer_size;
+    size_t net_buffer_size;
 
     CloudConfig();
 
     ~CloudConfig();
 };
 
-typedef struct {
+struct ReadWrite {
     bool read = false, write = false;
-} ReadWrite;
+};
 
 class CloudServer final {
 private:

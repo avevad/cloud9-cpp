@@ -377,12 +377,16 @@ int shell(CloudClient *client, NetConnection *connection, const std::string &log
                     else files.push_back(arg);
                 }
                 bool info = true;
-                size_t block_size = 1024 * 1024; // 1 MiB
+                size_t block_size = DEFAULT_DATA_BUFFER_SIZE;
                 bool recursive = false;
                 for (auto &option : options) {
                     if (option == "s") info = false;
                     else if (option == "r") recursive = true;
                     else if (option.find("b=") == 0) {
+                        if (!is_number(option.substr(2))) {
+                            std::cerr << "Buffer size must be a number" << std::endl;
+                            return;
+                        }
                         block_size = std::stoll(option.substr(2));
                     } else {
                         std::cerr << "put: unknown option " << option << std::endl;
@@ -414,12 +418,16 @@ int shell(CloudClient *client, NetConnection *connection, const std::string &log
                     else files.push_back(arg);
                 }
                 bool info = true;
-                size_t block_size = 1024 * 1024; // 1 MiB
+                size_t block_size = DEFAULT_DATA_BUFFER_SIZE;
                 bool recursive = false;
                 for (auto &option : options) {
                     if (option == "s") info = false;
                     else if (option == "r") recursive = true;
                     else if (option.find("b=") == 0) {
+                        if (!is_number(option.substr(2))) {
+                            std::cerr << "Buffer size must be a number" << std::endl;
+                            return;
+                        }
                         block_size = std::stoll(option.substr(2));
                     } else {
                         std::cerr << "get: unknown option " << option << std::endl;

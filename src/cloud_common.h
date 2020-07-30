@@ -7,6 +7,9 @@
 #include <chrono>
 #include "networking.h"
 
+static size_t DEFAULT_NET_BUFFER_SIZE = 1024 * 1024; // 1 MiB
+static size_t DEFAULT_DATA_BUFFER_SIZE = 1024 * 640; // 640 KiB
+
 static void read_exact(NetConnection *connection, uint64_t size, void *buffer) {
     uint64_t read = 0;
     while (read < size) read += connection->read(size - read, reinterpret_cast<char *>(buffer) + read);
@@ -104,6 +107,10 @@ static uint64_t read_uint64(NetConnection *connection) {
 typedef struct {
     uint8_t id[NODE_ID_LENGTH];
 } Node;
+
+static bool is_number(const std::string &s) {
+    return !s.empty() && s.find_first_not_of("0123456789") == std::string::npos;
+}
 
 static const char *LOGIN_CHARSET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_";
 

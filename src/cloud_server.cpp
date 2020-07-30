@@ -34,7 +34,7 @@ CloudServer::~CloudServer() {
 void CloudServer::connector_routine() {
     while (true) {
         try {
-            NetConnection *connection = new BufferedConnection(1024 * 1024, net->accept());
+            NetConnection *connection = new BufferedConnection(config.net_buffer_size, net->accept());
             auto *session = new Session(connection);
             sessions.insert(session);
             auto *listener = new std::thread(&CloudServer::listener_routine, this, session);
@@ -500,7 +500,7 @@ void CloudServer::listener_routine(Session *session) {
                     continue;
                 } else {
                     uint32_t count = buf_read_uint32(body + 1);
-                    if (count > MAX_READ_BLOCK_SIZE) {
+                    if (count > config.data_buffer_size) {
                         send_uint16(session->connection, REQUEST_ERR_READ_BLOCK_IS_TOO_LARGE);
                         send_uint64(session->connection, 0);
                         continue;
@@ -587,11 +587,11 @@ void CloudServer::listener_routine(Session *session) {
                 send_uint64(session->connection, 0);
                 session->connection->flush();
                 global_locker.unlock();
-                char *buffer = new char[MAX_READ_BLOCK_SIZE];
+                char *buffer = new char[config.data_buffer_size];
                 uint64_t done = 0;
                 try {
                     while (done < count) {
-                        uint32_t read = std::min(count - done, uint64_t(MAX_READ_BLOCK_SIZE));
+                        uint32_t read = std::min(count - done, uint64_t(config.data_buffer_size));
                         descriptor.stream->read(buffer, read);
                         send_exact(session->connection, read, buffer);
                         done += uint64_t(read);
@@ -630,11 +630,12 @@ void CloudServer::listener_routine(Session *session) {
                 session->connection->flush();
                 global_locker.unlock();
                 uint64_t done = 0;
-                char *buffer = new char[MAX_READ_BLOCK_SIZE];
+                char *buffer = new char[config.data_buffer_size];
                 try {
                     while (done < count) {
-                        uint64_t read = session->connection->read(std::min(count - done, uint64_t(MAX_READ_BLOCK_SIZE)),
-                                                                  buffer);
+                        uint64_t read = session->connection->read(
+                                std::min(count - done, uint64_t(config.data_buffer_size)),
+                                buffer);
                         descriptor.stream->write(buffer, read);
                         done += read;
                     }

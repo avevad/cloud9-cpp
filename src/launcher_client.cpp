@@ -10,6 +10,7 @@
 
 
 static const std::string OPTION_LONG_PORT = "port=";
+static const std::string OPTION_LONG_NET_BUFFER_SIZE = "net_buffer_size=";
 
 std::string prompt_password(const std::string &prompt) {
     std::cout << prompt;
@@ -63,10 +64,15 @@ int main(int argc, const char **argv) {
             return 1;
         }
     }
+    size_t net_buffer_size = DEFAULT_NET_BUFFER_SIZE;
     for (std::string &o : options_long) {
         if (o.empty()) continue;
         if (o.find(OPTION_LONG_PORT) == 0) {
             std::string s_port = o.substr(OPTION_LONG_PORT.length());
+            if (!is_number(s_port)) {
+                std::cerr << "Port must be a number";
+                return 1;
+            }
             int i_port = std::stoi(s_port);
             if (i_port > int(uint16_t(-1))) {
                 std::cerr << "Port number is too large" << std::endl;
@@ -77,6 +83,18 @@ int main(int argc, const char **argv) {
                 return 1;
             }
             port = i_port;
+        } else if (o.find(OPTION_LONG_NET_BUFFER_SIZE) == 0) {
+            std::string s_size = o.substr(OPTION_LONG_NET_BUFFER_SIZE.length());
+            if (!is_number(s_size)) {
+                std::cerr << "Network buffer size must be a number";
+                return 1;
+            }
+            size_t size = std::stoll(s_size);
+            if (size <= 0) {
+                std::cerr << "Network buffer size is too small" << std::endl;
+                return 1;
+            }
+            net_buffer_size = size;
         } else {
             std::cerr << "Unknown long option '" << o << "'" << std::endl;
             return 1;
@@ -84,7 +102,7 @@ int main(int argc, const char **argv) {
     }
     NetConnection *connection = nullptr;
     try {
-        connection = new BufferedConnection<TCPConnection>(1024 * 1024, host.c_str(), port);
+        connection = new BufferedConnection<TCPConnection>(net_buffer_size, host.c_str(), port);
     } catch (std::exception &exception) {
         std::cerr << exception.what() << std::endl;
         return 1;
