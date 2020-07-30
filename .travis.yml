@@ -1,6 +1,5 @@
 dist: bionic
 language: cpp
-
 addons:
   apt:
     sources:
@@ -12,7 +11,6 @@ addons:
       - gcc-10
       - g++-10
       - cmake
-
 matrix:
   include:
     - os: linux
@@ -23,11 +21,22 @@ matrix:
       arch: ppc64le
     - os: linux
       arch: s390x
-
 script:
   - cd cmake-build-release
   - export CC=$(which gcc-10)
   - export CXX=$(which g++-10)
-  - cmake -DCMAKE_BUILD_TYPE=Release .. &&
-    make -j$(nproc) &&
-    make test SHOW_INTERACTIVE_LOG=1
+  - cmake -DCMAKE_BUILD_TYPE=Release .. && make -j$(nproc) && make test SHOW_INTERACTIVE_LOG=1
+  - cd ..
+before_deploy:
+  - mkdir cmake-build-release/upload
+  - tar -cvf cmake-build-release/upload/cloud9-cpp-$TRAVIS_TAG-$TRAVIS_CPU_ARCH.tar.gz cmake-build-release/cloud9 cmake-build-release/cloud9d
+deploy:
+  provider: releases
+  api_key:
+    secure: avlzywlfHALsnjk92r/5rcu1w7q7IM4gIhnEncohKHDZlwNDVmES5ncAR+M4Gpcn7eLfhT6VMfMVoi1aM3lfHL0aDxhEvUGT8GsJl3499Np/XsPWU99IJv/82EgZgqs4AUQy0nWjzx0zdKhPV2r3AgPhmZlT9rpQk+k0i77FZ4YYoIfnfl0nVlBpD+jpwn/g023/ZVX2wugo9iCiWNylRLCqf3TcO0P628au/5wuNXaFFDYcYaRM8uSsL9dgQowDwgScaO3kZ5QwQlovdsglxxn/uDf6TDJWglLb0wPBoUhRittFhbh+ji8NdQfc+LXQFRNaC16M48NO9k7X9xLLE4RvuuNRdrvs7lilDNwdmC65Ir1l8pVjqiVbxacZm6ekWTwn69onT5C/njtGP3EnPhuicLQa2DO4pfzo30YiOEXg0Mj4NjSJpRvrEtkNk5J+p48TPqfVORIz/aq1lfi8rsPAkM7hOaUNKFhHur0SU0u+0t+H6ZBixoR1qsZVGY6wQ1IA6qjZTWVOHmFF55n4E1tvtjrDYr2xSprLgZWYoQCRw4zza6huI4Cfs5wRehFSAP1APd5OJSOqYHF+CjhKZ4jHGk4CW6qwFFzhiNZSx8giO+3FuU5PQZVUGWQ8fXhs4QYs5TogVan7nnTLT+Et1yEyq/kXi/bwvCPcg7n1u08=
+  file_glob: true
+  file: cmake-build-release/upload/*
+  on:
+    repo: avevad/cloud9-cpp
+    tags: true
+  skip_cleanup: 'true'
