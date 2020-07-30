@@ -2,6 +2,7 @@
 #include <functional>
 #include "cloud_client.h"
 #include "cloud_common.h"
+#include <unistd.h>
 
 CloudClient::CloudClient(NetConnection *net, const std::string &login,
                          const std::function<std::string()> &password_callback)
@@ -52,6 +53,8 @@ CloudClient::~CloudClient() {
             send_uint16(connection, REQUEST_CMD_GOODBYE);
             send_uint64(connection, 0);
             connection->flush();
+            terminate_listener = true;
+            while (connected && responses.find(current_id) == responses.end());
             connection->close();
             if (listener.joinable()) listener.join();
         } catch (std::exception &exception) {}
@@ -64,7 +67,7 @@ CloudClient::~CloudClient() {
 void CloudClient::listener_routine() {
     ServerResponse response;
     try {
-        while (true) {
+        while (!terminate_listener) {
             response = ServerResponse();
             uint32_t id = read_uint32(connection);
             response.status = read_uint16(connection);

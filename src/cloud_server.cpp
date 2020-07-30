@@ -24,17 +24,14 @@ CloudServer::~CloudServer() {
     net->destroy();
     if (connector->joinable()) connector->join();
     delete connector;
-    for (Session *session : sessions) {
-        session->connection->close();
-    }
     for (std::thread *listener : listeners) {
-        if (listener->joinable()) listener->join();
+        if (listener->joinable()) listener->detach();
         delete listener;
     }
 }
 
 void CloudServer::connector_routine() {
-    while (true) {
+    while (!shutting_down) {
         try {
             NetConnection *connection = new BufferedConnection(config.net_buffer_size, net->accept());
             auto *session = new Session(connection, session_id++);
@@ -42,8 +39,8 @@ void CloudServer::connector_routine() {
             auto *listener = new std::thread(&CloudServer::listener_routine, this, session);
             listeners.push_back(listener);
         } catch (std::runtime_error &error) {
-            if (!shutting_down) std::cerr << "connector exited with exception: " << error.what() << std::endl;
-            break;
+            if (shutting_down) break;
+            else std::cerr << "failed to connect client: " << error.what() << std::endl;
         }
     }
 }
@@ -139,7 +136,7 @@ void CloudServer::listener_routine(Session *session) {
     }
     bool goodbye = false;
     try {
-        while (true) {
+        while (!shutting_down) {
             session->connection->flush();
             auto id = read_uint32(session->connection);
             auto cmd = read_uint16(session->connection);

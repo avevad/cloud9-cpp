@@ -10,6 +10,10 @@ extern "C" {
 
 struct LauncherConfig : public CloudConfig {
     uint16_t server_port;
+    bool ssl;
+    std::string ssl_cert_path;
+    std::string ssl_key_path;
+    std::string ssl_password;
 };
 
 struct ConfigLoaderData {
@@ -84,7 +88,7 @@ static const char *CONFIG_OPTION_USERS_DIRECTORY = "cloud.users_directory";
 static const char *CONFIG_OPTION_NODES_HEAD_DIRECTORY = "cloud.nodes_head_directory";
 static const char *CONFIG_OPTION_NODES_DATA_DIRECTORY = "cloud.nodes_data_directory";
 static const char *CONFIG_OPTION_ACCESS_LOG = "cloud.access_log";
-static const std::string CONFIG_DEFAULT_ACCESS_LOG = "";
+static const std::string CONFIG_DEFAULT_ACCESS_LOG;
 static const char *CONFIG_OPTION_INVITES_FILE = "cloud.invites_file";
 static const char *CONFIG_OPTION_NET_BUFFER_SIZE = "cloud.net_buffer_size";
 static const LUA_INTEGER CONFIG_DEFAULT_NET_BUFFER_SIZE = DEFAULT_NET_BUFFER_SIZE;
@@ -94,6 +98,11 @@ static const LUA_INTEGER CONFIG_DEFAULT_DATA_BUFFER_SIZE = DEFAULT_DATA_BUFFER_S
 static const char *CONFIG_OPTION_LAUNCHER = "launcher";
 static const char *CONFIG_OPTION_SERVER_PORT = "launcher.server_port";
 static const LUA_INTEGER CONFIG_DEFAULT_SERVER_PORT = CLOUD_DEFAULT_PORT;
+static const char *CONFIG_OPTION_SSL = "launcher.ssl";
+static const char *CONFIG_OPTION_SSL_CERT = "launcher.ssl.cert";
+static const char *CONFIG_OPTION_SSL_KEY = "launcher.ssl.key";
+static const char *CONFIG_OPTION_SSL_PASSWORD = "launcher.ssl.cert_passwd";
+static const std::string CONFIG_DEFAULT_SSL_PASSWORD;
 
 void load_config(LauncherConfig &config) {
     if (!std::filesystem::is_regular_file(CONFIG_FILE)) throw std::invalid_argument("nonexistent config file");
@@ -150,6 +159,14 @@ void load_config(LauncherConfig &config) {
     }
 
     config.server_port = global_get_config_integer(state, CONFIG_OPTION_SERVER_PORT, &CONFIG_DEFAULT_SERVER_PORT);
+    global_get_config_option(state, CONFIG_OPTION_SSL);
+    config.ssl = !lua_isnil(state, lua_gettop(state));
+    lua_pop(state, 1);
+    if (config.ssl) {
+        config.ssl_cert_path = global_get_config_string(state, CONFIG_OPTION_SSL_CERT);
+        config.ssl_key_path = global_get_config_string(state, CONFIG_OPTION_SSL_KEY);
+        config.ssl_password = global_get_config_string(state, CONFIG_OPTION_SSL_PASSWORD, &CONFIG_DEFAULT_SSL_PASSWORD);
+    }
 
     lua_close(state);
 }

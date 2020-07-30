@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <chrono>
 #include "networking.h"
+#include <iostream>
 
 static const uint16_t CLOUD9_REL_CODE = 1;
 static const char *CLOUD9_REL_NAME = "1.0.0";
@@ -404,6 +405,16 @@ static std::string generate_timestamp() {
     std::time_t time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
     std::string time_c = std::ctime(&time);
     return time_c.substr(0, time_c.length() - 1);
+}
+
+static std::string prompt_password(const std::string &prompt) {
+    std::cout << prompt;
+    std::cout << "\x1B[37m\x1B[47m\x1B[8m";
+    std::string password;
+    std::getline(std::cin, password);
+    std::cout << "\x1B[0m";
+    std::cout.flush();
+    return password;
 }
 
 #endif //CLOUD9_CLOUD_COMMON_H

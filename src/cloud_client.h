@@ -31,6 +31,7 @@ private:
     std::map<uint32_t, ServerResponse> responses;
     uint32_t current_id = 0;
     bool connected = true;
+    bool terminate_listener = false;
 
     static void negotiate(NetConnection *net);
 
@@ -41,6 +42,10 @@ public:
                 const std::function<std::string()> &password_callback);
 
     ~CloudClient();
+
+    void wait() {
+        if (listener.joinable()) listener.join();
+    }
 
     Node get_home(const std::string &user = "");
 

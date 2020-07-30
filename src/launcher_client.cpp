@@ -12,15 +12,6 @@
 static const std::string OPTION_LONG_PORT = "port=";
 static const std::string OPTION_LONG_NET_BUFFER_SIZE = "net_buffer_size=";
 
-std::string prompt_password(const std::string &prompt) {
-    std::cout << prompt;
-    std::cout << "\x1B[37m\x1B[47m\x1B[8m";
-    std::string password;
-    std::getline(std::cin, password);
-    std::cout << "\x1B[0m";
-    std::cout.flush();
-    return password;
-}
 
 int main(int argc, const char **argv) {
     signal(SIGPIPE, SIG_IGN);
@@ -38,12 +29,17 @@ int main(int argc, const char **argv) {
     }
     bool registration = false;
     uint16_t port = CLOUD_DEFAULT_PORT;
+    bool tcp = false;
     for (char o : options_short) {
         if (o == 'r') {
             registration = true;
         } else if (o == 'v') {
             std::cout << "cloud9 version " << CLOUD9_REL_NAME << " (" << CLOUD9_REL_CODE << ")" << std::endl;
             return 0;
+        } else if (o == 't') {
+            std::cerr << "Warning: TCP is insecure. Your password and other private information could be stolen!"
+                      << std::endl;
+            tcp = true;
         } else {
             std::cerr << "Unknown short option '" << o << "'" << std::endl;
             return 1;
@@ -105,7 +101,9 @@ int main(int argc, const char **argv) {
     }
     NetConnection *connection = nullptr;
     try {
-        connection = new BufferedConnection<TCPConnection>(net_buffer_size, host.c_str(), port);
+        if (tcp)
+            connection = new BufferedConnection<TCPConnection>(net_buffer_size, host.c_str(), port);
+        else connection = new BufferedConnection<SSLConnection>(net_buffer_size, host.c_str(), port);
     } catch (std::exception &exception) {
         std::cerr << exception.what() << std::endl;
         return 1;

@@ -573,6 +573,8 @@ int shell(CloudClient *client, NetConnection *connection, const std::string &log
                     } catch (CloudRequestError &error) {
                         std::cerr << "Request failed: " << error.what() << std::endl;
                     }
+                } else if (command == "exit") {
+                    return fail;
                 } else std::cerr << "No such command: " << command_name << std::endl;
             }
         } else std::cerr << "Failed to parse command: " << error << std::endl;
