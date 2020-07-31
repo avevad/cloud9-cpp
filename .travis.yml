@@ -39,4 +39,4 @@ deploy:
   on:
     repo: avevad/cloud9-cpp
     tags: true
-  skip_cleanup: 'true'
+  skip_cleanup: true
