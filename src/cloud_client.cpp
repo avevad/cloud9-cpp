@@ -53,10 +53,7 @@ CloudClient::~CloudClient() {
             send_uint16(connection, REQUEST_CMD_GOODBYE);
             send_uint64(connection, 0);
             connection->flush();
-            terminate_listener = true;
-            while (connected && responses.find(current_id) == responses.end());
-            connection->close();
-            if (listener.joinable()) listener.join();
+            if (listener.joinable()) listener.detach();
         } catch (std::exception &exception) {}
     } else {
         if (listener.joinable()) listener.join();
