@@ -101,7 +101,7 @@ static const LUA_INTEGER CONFIG_DEFAULT_SERVER_PORT = CLOUD_DEFAULT_PORT;
 static const char *CONFIG_OPTION_SSL = "launcher.ssl";
 static const char *CONFIG_OPTION_SSL_CERT = "launcher.ssl.cert";
 static const char *CONFIG_OPTION_SSL_KEY = "launcher.ssl.key";
-static const char *CONFIG_OPTION_SSL_PASSWORD = "launcher.ssl.passwd";
+static const char *CONFIG_OPTION_SSL_PASSWORD = "launcher.ssl.password";
 static const std::string CONFIG_DEFAULT_SSL_PASSWORD;
 
 void load_config(LauncherConfig &config) {
