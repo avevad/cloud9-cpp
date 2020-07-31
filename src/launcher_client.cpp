@@ -10,8 +10,30 @@
 
 
 static const std::string OPTION_LONG_PORT = "port=";
-static const std::string OPTION_LONG_NET_BUFFER_SIZE = "net_buffer_size=";
+static const std::string OPTION_LONG_NET_BUFFER_SIZE = "nbs=";
 
+void print_version() {
+    std::cout << "cloud9 version " << CLOUD9_REL_NAME << " (" << CLOUD9_REL_CODE << ")" << std::endl;
+}
+
+void print_usage() {
+    std::cout << "Usage: cloud9 [OPTIONS]... [USERNAME@]HOST" << std::endl;
+    std::cout << "Console Cloud9 client." << std::endl;
+    std::cout << std::endl;
+    std::cout << "Default behavior: connects to HOST and logs in with USERNAME." << std::endl;
+    std::cout << "If no username provided, it will be the same as your current system user username." << std::endl;
+    std::cout << std::endl;
+    std::cout << "Available options:" << std::endl;
+    std::cout << " " << "Behavior:" << std::endl;
+    std::cout << " \t" << "-v" << "\t\t" << "print version and exit" << std::endl;
+    std::cout << " \t" << "-h" << "\t\t" << "print version and usage then exit" << std::endl;
+    std::cout << " \t" << "-r" << "\t\t" << "register new user at the server" << std::endl;
+    std::cout << " " << std::endl;
+    std::cout << " " << "Network:" << std::endl;
+    std::cout << " \t" << "-t" << "\t\t" << "insecure (TCP) connection" << std::endl;
+    std::cout << " \t" << "--port=<port>" << "\t" << "server port, default " << CLOUD_DEFAULT_PORT << std::endl;
+    std::cout << " \t" << "--nbs=<size>" << "\t" << "net buffer size, default 1 MiB" << std::endl;
+}
 
 int main(int argc, const char **argv) {
     signal(SIGPIPE, SIG_IGN);
@@ -34,12 +56,16 @@ int main(int argc, const char **argv) {
         if (o == 'r') {
             registration = true;
         } else if (o == 'v') {
-            std::cout << "cloud9 version " << CLOUD9_REL_NAME << " (" << CLOUD9_REL_CODE << ")" << std::endl;
+            print_version();
             return 0;
         } else if (o == 't') {
             std::cerr << "Warning: TCP is insecure. Your password and other private information could be stolen!"
                       << std::endl;
             tcp = true;
+        } else if (o == 'h') {
+            print_version();
+            print_usage();
+            return 0;
         } else {
             std::cerr << "Unknown short option '" << o << "'" << std::endl;
             return 1;
