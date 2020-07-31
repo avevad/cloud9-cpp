@@ -311,7 +311,7 @@ static std::string request_name(uint16_t request) {
     else if (request == REQUEST_CMD_GROUP_LIST) return "GLST";
     else if (request == REQUEST_CMD_COPY_NODE) return "COPY";
     else if (request == REQUEST_CMD_MOVE_NODE) return "MOVE";
-    else if (request == REQUEST_CMD_MOVE_NODE) return "RENM";
+    else if (request == REQUEST_CMD_RENAME_NODE) return "RENM";
     else return std::to_string(request);
 }
 
