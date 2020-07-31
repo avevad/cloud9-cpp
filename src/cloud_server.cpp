@@ -101,6 +101,7 @@ void CloudServer::listener_routine(Session *session) {
             log_init(session, std::pair("invite", invite), std::pair("login", login));
             if (std::filesystem::exists(get_user_head_path(login))) INIT_ERR(INIT_ERR_USER_EXISTS);
             if (!use_invite(invite)) INIT_ERR(INIT_ERR_INVALID_INVITE_CODE);
+            if (!is_valid_login(login)) INIT_ERR(INIT_ERR_INVALID_USERNAME);
             Node home = generate_node();
             {
                 std::ofstream home_head(get_node_head_path(home));

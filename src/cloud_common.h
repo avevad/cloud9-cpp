@@ -174,6 +174,7 @@ static const uint16_t INIT_ERR_AUTH_FAILED = 3;
 static const uint16_t INIT_ERR_MALFORMED_CMD = 4;
 static const uint16_t INIT_ERR_INVALID_INVITE_CODE = 5;
 static const uint16_t INIT_ERR_USER_EXISTS = 6;
+static const uint16_t INIT_ERR_INVALID_USERNAME = 7;
 
 static const uint64_t REQUEST_BODY_MAX_SIZE = 1024 * 1024 * 8; // 8 MiB
 static const uint16_t REQUEST_CMD_GET_HOME = 1;
@@ -260,6 +261,7 @@ static std::string init_status_string(uint16_t status) {
     else if (status == INIT_ERR_MALFORMED_CMD) return "malformed init command";
     else if (status == INIT_ERR_INVALID_INVITE_CODE) return "invite code is invalid";
     else if (status == INIT_ERR_USER_EXISTS) return "user exists";
+    else if (status == INIT_ERR_INVALID_USERNAME) return "username is invalid";
     else return "unknown init error (" + std::to_string(status) + ")";
 }
 
