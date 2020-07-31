@@ -293,9 +293,146 @@ std::string node_desc(CloudClient *client, Node node, bool hidden, bool long_lis
     return result;
 }
 
+void list_commands() {
+    std::cout << "Available commands:" << std::endl;
+    std::cout << " " << "ls" "\t\t" "cd" "\t\t" "pwd" << std::endl;
+    std::cout << " " << "mkdir" "\t\t" "node" "\t\t" "put" << std::endl;
+    std::cout << " " << "get" "\t\t" "chmod" "\t\t" "group" << std::endl;
+    std::cout << " " << "rm" "\t\t" "chown" "\t\t" "mv" << std::endl;
+    std::cout << " " << "cp" "\t\t" "rn" "\t\t" "help" << std::endl;
+    std::cout << std::endl;
+    std::cout << "Type 'help help' for further information." << std::endl;
+}
+
+void print_help(std::string cmd) {
+    bool all = cmd == "*";
+    bool ok = false;
+    if (all | cmd == "ls") {
+        ok = true;
+        std::cout << "ls [OPTIONS]... [DIRS]..." << std::endl;
+        std::cout << "\t" "List files in directories" << std::endl;
+        std::cout << "\t" " If no DIRS specified, list files in current directory" << std::endl;
+        std::cout << "\t" " Options:" << std::endl;
+        std::cout << "\t" "  " "-a" "\t" "list hidden files" << std::endl;
+        std::cout << "\t" "  " "-l" "\t" "show additional information" << std::endl;
+    }
+    if (all | cmd == "cd") {
+        ok = true;
+        std::cout << "cd [DIR]" << std::endl;
+        std::cout << "\t" "Set current working directory (CWD) to DIR" << std::endl;
+        std::cout << "\t" " If no DIR specified, sets it to your home." << std::endl;
+        std::cout << "\t" " Cloud9 paths are differ from your system FS paths." << std::endl;
+        std::cout << "\t" " Every node (file or directory) has its own 16-byte ID." << std::endl;
+        std::cout << "\t" " IDs are represented with 32 hexadecimal digits (i. e. 4e7cdabec0a073b085987a2f71d14157).\n";
+        std::cout << "\t" " Any path starting with ~ or # is absolute, others are relative to the CWD." << std::endl;
+        std::cout << "\t" " Path that starts with #<NODE_ID> means that it is relative to node with id NODE_ID.\n";
+        std::cout << "\t" " I. e. path '#4e7cdabec0a073b085987a2f71d14157/folder1' represents path "
+                  << "to the folder 'folder1' which is located in the directory with ID 4e7cdabec0a073b085987a2f71d14157."
+                  << std::endl;
+        std::cout << "\t" " Any path which starts with ~<USER> represent path relative to USER's home directory."
+                  << std::endl;
+    }
+    if (all | cmd == "pwd") {
+        ok = true;
+        std::cout << "pwd" << std::endl;
+        std::cout << "\t" "Print path to the CWD" << std::endl;
+    }
+    if (all | cmd == "mkdir") {
+        ok = true;
+        std::cout << "mkdir <PATH>" << std::endl;
+        std::cout << "\t" "Create new directory" << std::endl;
+    }
+    if (all | cmd == "node") {
+        ok = true;
+        std::cout << "node [PATH]" << std::endl;
+        std::cout << "\t" "Print ID of the node located at PATH" << std::endl;
+        std::cout << "\t" " PATH defaults to the CWD" << std::endl;
+    }
+    if (all | cmd == "put") {
+        ok = true;
+        std::cout << "put [OPTIONS]... <FILES>... <DIRECTORY>" << std::endl;
+        std::cout << "\t" "Upload local FILES to the remote DIRECTORY" << std::endl;
+        std::cout << "\t" " Options:" << std::endl;
+        std::cout << "\t" "  " "-r" "\t" "operate recursively" << std::endl;
+        std::cout << "\t" "  " "-s" "\t" "operate silently" << std::endl;
+        std::cout << "\t" "  " "-b=<N>" "\t" "read up to N bytes at a time, default is 640 KiB" << std::endl;
+    }
+    if (all | cmd == "get") {
+        ok = true;
+        std::cout << "get [OPTIONS]... <FILES>... <DIRECTORY>" << std::endl;
+        std::cout << "\t" "Download remote FILES to the local DIRECTORY" << std::endl;
+        std::cout << "\t" " Options:" << std::endl;
+        std::cout << "\t" "  " "-r" "\t" "operate recursively" << std::endl;
+        std::cout << "\t" "  " "-s" "\t" "operate silently" << std::endl;
+        std::cout << "\t" "  " "-b=<N>" "\t" "write up to N bytes at a time, default is 640 KiB" << std::endl;
+    }
+    if (all | cmd == "chmod") {
+        ok = true;
+        std::cout << "chmod <RIGHTS> <NODE>" << std::endl;
+        std::cout << "\t" "Set NODE's RIGHTS" << std::endl;
+        std::cout << "\t" " Every node has four rights: group read, group write, any read, any write." << std::endl;
+        std::cout << "\t" " Full set of rights is represented with 1111, none of them - with 0000" << std::endl;
+        std::cout << "\t" " Only the owner of the node could change its rights and unconditionally do anything else.\n";
+    }
+    if (all | cmd == "group") {
+        ok = true;
+        std::cout << "group" << std::endl;
+        std::cout << "\t" "Print all the groups which you are the member of" << std::endl;
+        std::cout << "\t" " Any user has its own group (just one) and could belong to several other users' groups.\n";
+    }
+    if (all | cmd == "group") {
+        ok = true;
+        std::cout << "group invite <USERS>..." << std::endl;
+        std::cout << "\t" "Make USERS members of your group" << std::endl;
+    }
+    if (all | cmd == "group") {
+        ok = true;
+        std::cout << "group kick <USERS>..." << std::endl;
+        std::cout << "\t" "Remove USERS from your group" << std::endl;
+    }
+    if (all | cmd == "rm") {
+        ok = true;
+        std::cout << "rm <NODES>..." << std::endl;
+        std::cout << "\t" << "Remove NODES" << std::endl;
+        std::cout << "\t" << " Non-empty directories removal is unsupported" << std::endl;
+    }
+    if (all | cmd == "chown") {
+        ok = true;
+        std::cout << "chown <USER> <NODES>..." << std::endl;
+        std::cout << "\t" "Set NODES' group to USER" << std::endl;
+        std::cout << "\t" " Only the owner of the node could change its group" << std::endl;
+    }
+    if (all | cmd == "mv") {
+        ok = true;
+        std::cout << "mv <NODE> <DIRECTORY>" << std::endl;
+        std::cout << "\t" "Move NODE to the DIRECTORY" << std::endl;
+    }
+    if (all | cmd == "cp") {
+        ok = true;
+        std::cout << "cp <NODE> <NAME>" << std::endl;
+        std::cout << "\t" "Create NODE's clone with name NAME" << std::endl;
+    }
+    if (all | cmd == "rn") {
+        ok = true;
+        std::cout << "rn <NODE> <NAME>" << std::endl;
+        std::cout << "\t" "Rename NODE to NAME" << std::endl;
+    }
+    if (all | cmd == "help") {
+        ok = true;
+        std::cout << "help" << std::endl;
+        std::cout << "\t" "Print available commands" << std::endl;
+    }
+    if (all | cmd == "help") {
+        ok = true;
+        std::cout << "help <COMMANDS>..." << std::endl;
+        std::cout << "\t" "Print help about each of COMMANDS" << std::endl;
+    }
+    if (!ok) std::cerr << "help: no such command '" << cmd << "'" << std::endl;
+}
+
 int shell(CloudClient *client, NetConnection *connection, const std::string &login, const std::string &host) {
     const std::map<std::string, std::function<void(CloudClient *, Node &, std::vector<std::string> &)>> commands{
-            {"ls",    [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
+            {"ls",   [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
                 std::string target;
                 std::string options;
                 for (auto &a : args) {
@@ -520,7 +657,7 @@ int shell(CloudClient *client, NetConnection *connection, const std::string &log
                     });
                 }
             }},
-            {"mv",    [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
+            {"mv",   [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
                 if (args.size() < 2) std::cerr << "mv: not enough arguments" << std::endl;
                 else {
                     Node new_parent = get_path_node(client, cwd, args.back());
@@ -531,7 +668,7 @@ int shell(CloudClient *client, NetConnection *connection, const std::string &log
                                   });
                 }
             }},
-            {"cp",    [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
+            {"cp",   [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
                 if (args.size() != 2) std::cerr << "cp: exactly 2 arguments expected" << std::endl;
                 else {
                     Node node = get_path_node(client, cwd, args[0]);
@@ -539,12 +676,20 @@ int shell(CloudClient *client, NetConnection *connection, const std::string &log
                     client->copy_node(node, name);
                 }
             }},
-            {"rn",    [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
+            {"rn",   [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
                 if (args.size() != 2) std::cerr << "rn: exactly 2 arguments expected" << std::endl;
                 else {
                     Node node = get_path_node(client, cwd, args[0]);
                     std::string name = args[1];
                     client->rename_node(node, name);
+                }
+            }},
+            {"help", [](CloudClient *client, Node &cwd, std::vector<std::string> &args) {
+                if (args.empty()) list_commands();
+                else {
+                    for (const std::string &cmd : args) {
+                        print_help(cmd);
+                    }
                 }
             }}
     };
