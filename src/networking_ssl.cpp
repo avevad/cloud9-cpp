@@ -88,12 +88,9 @@ size_t SSLConnection::read(size_t n, void *buffer) {
 
 void SSLConnection::close() {
     if (!is_valid()) return;
+    connected = false;
     SSL_shutdown(ssl);
-    SSL_free(ssl);
-    ssl = nullptr;
     ::shutdown(sock, SHUT_RDWR);
-    ::close(sock);
-    if (context) SSL_CTX_free(context);
 }
 
 SSLConnection::~SSLConnection() {
@@ -101,10 +98,13 @@ SSLConnection::~SSLConnection() {
         std::cout << "networking_ssl: warning: destructing valid connection" << std::endl;
         close();
     }
+    SSL_free(ssl);
+    if (context) SSL_CTX_free(context);
+    ::close(sock);
 }
 
 bool SSLConnection::is_valid() {
-    return ssl != nullptr;
+    return connected;
 }
 
 void SSLConnection::flush() {
@@ -144,6 +144,7 @@ SSLServer::SSLServer(int port, const char *cert, const char *key, pem_password_c
 }
 
 SSLConnection *SSLServer::accept() {
+    if (!valid) throw std::runtime_error("socket server is closed");
     int client = ::accept(sock, nullptr, nullptr);
     if (client < 0) throw std::runtime_error("accept failed: " + std::string(strerror(errno)));
     SSL *ssl = SSL_new(context);
@@ -158,15 +159,12 @@ SSLConnection *SSLServer::accept() {
 
 void SSLServer::destroy() {
     if (!is_valid()) return;
+    valid = false;
     ::shutdown(sock, SHUT_RDWR);
-    ::close(sock);
-    sock = -1;
-    SSL_CTX_free(context);
-    context = nullptr;
 }
 
 bool SSLServer::is_valid() {
-    return sock >= 0;
+    return valid;
 }
 
 SSLServer::~SSLServer() {
@@ -174,4 +172,6 @@ SSLServer::~SSLServer() {
         std::cout << "networking_ssl: warning: destructing valid server" << std::endl;
         destroy();
     }
+    SSL_CTX_free(context);
+    ::close(sock);
 }

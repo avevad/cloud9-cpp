@@ -14,6 +14,7 @@ private:
     SSL *ssl;
     int sock;
     SSL_CTX *context;
+    bool connected = true;
 
     SSLConnection(SSL *ssl, int sock) : ssl(ssl), sock(sock), context(nullptr) {}
 
@@ -39,6 +40,7 @@ private:
     int sock;
     SSL_CTX *context;
     const char *const cert, *const key;
+    bool valid = true;
 public:
     SSLServer() = delete;
 

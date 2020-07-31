@@ -53,7 +53,8 @@ CloudClient::~CloudClient() {
             send_uint16(connection, REQUEST_CMD_GOODBYE);
             send_uint64(connection, 0);
             connection->flush();
-            if (listener.joinable()) listener.detach();
+            connection->close();
+            if (listener.joinable()) listener.join();
         } catch (std::exception &exception) {}
     } else {
         if (listener.joinable()) listener.join();
@@ -64,7 +65,7 @@ CloudClient::~CloudClient() {
 void CloudClient::listener_routine() {
     ServerResponse response;
     try {
-        while (!terminate_listener) {
+        while (true) {
             response = ServerResponse();
             uint32_t id = read_uint32(connection);
             response.status = read_uint16(connection);

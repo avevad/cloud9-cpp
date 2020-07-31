@@ -24,8 +24,11 @@ CloudServer::~CloudServer() {
     net->destroy();
     if (connector->joinable()) connector->join();
     delete connector;
+    for (Session *session : sessions) {
+        session->connection->close();
+    }
     for (std::thread *listener : listeners) {
-        if (listener->joinable()) listener->detach();
+        if (listener->joinable()) listener->join();
         delete listener;
     }
 }
