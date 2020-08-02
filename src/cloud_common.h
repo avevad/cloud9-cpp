@@ -9,7 +9,7 @@
 #include <iostream>
 
 static const uint16_t CLOUD9_REL_CODE = 1;
-static const char *CLOUD9_REL_NAME = "1.0.1";
+static const char *CLOUD9_REL_NAME = "1.0.2";
 
 static const char *CLOUD9_HEADER = "\x89\x0D\x0A\x1A\xC1\xD9";
 static const size_t CLOUD9_HEADER_LENGTH = 6;
