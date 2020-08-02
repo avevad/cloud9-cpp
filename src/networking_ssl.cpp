@@ -67,6 +67,7 @@ SSLConnection::SSLConnection(const char *host, int port) {
 
 size_t SSLConnection::send(size_t n, const void *buffer) {
     if (!is_valid()) throw std::runtime_error("not connected");
+    if (n == 0) return 0;
     int status = SSL_write(ssl, buffer, n);
     if (status <= 0) {
         auto error = ssl_error(ssl, "socket connection send error", status);
@@ -77,7 +78,7 @@ size_t SSLConnection::send(size_t n, const void *buffer) {
 
 size_t SSLConnection::read(size_t n, void *buffer) {
     if (!is_valid()) throw std::runtime_error("not connected");
-    auto i = rand();
+    if (n == 0) return 0;
     int status = SSL_read(ssl, buffer, n);
     if (status <= 0) {
         auto error = ssl_error(ssl, "socket connection read error", status);

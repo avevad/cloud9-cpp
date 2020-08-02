@@ -32,6 +32,7 @@ TCPConnection::TCPConnection(const char *host, uint16_t port) {
 
 size_t TCPConnection::send(size_t n, const void *buffer) {
     if (!is_valid()) throw std::runtime_error("connection is closed");
+    if (n == 0) return 0;
     ssize_t sent = ::send(sock, buffer, n, 0);
     if (sent == -1) {
         close();
@@ -42,6 +43,7 @@ size_t TCPConnection::send(size_t n, const void *buffer) {
 
 size_t TCPConnection::read(size_t n, void *buffer) {
     if (!is_valid()) throw std::runtime_error("connection is closed");
+    if (n == 0) return 0;
     ssize_t read = ::recv(sock, buffer, n, 0);
     if (read == -1) {
         close();
