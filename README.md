@@ -4,7 +4,7 @@
 ### About
 Cloud9 is a self-hosted cloud storage for your server.
 
-**Note:** C++ part of the cloud is linux-only (cross-platform GUI client is coming soon).
+**Note:** C++ part of the cloud is linux-only (cross-platform GUI client is [coming soon](http://github.com/avevad/cloud9-java)).
 
 ### Getting it
 There are two variants of getting the cloud:
