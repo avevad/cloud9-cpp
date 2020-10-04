@@ -17,6 +17,7 @@ public:
     std::string nodes_head_directory;
     std::string nodes_data_directory;
     std::string access_log;
+    std::string auth_log;
     std::string invites_file;
     size_t data_buffer_size;
     size_t net_buffer_size;
@@ -61,11 +62,14 @@ private:
     std::map<Node, std::set<Session *>> readers;
     std::map<Node, Session *> writers;
     std::ofstream access_log;
+    std::ofstream auth_log;
     size_t session_id = 0;
 
     void connector_routine();
 
-    void listener_routine(Session *);
+    void init_routine(Session *session);
+
+    void control_routine(Session *session);
 
     std::pair<char *, size_t> get_node_head(Node node);
 
@@ -151,6 +155,12 @@ private:
         access_log << "\tINI";
         for (auto &s_p : s_pairs) access_log << " " << s_p;
         access_log << std::endl;
+    }
+
+    void log_auth(Session *session, const std::string &message) {
+        if (config.auth_log.empty()) return;
+        auth_log << "[" << generate_timestamp() << "] " << session->login << '#' << session->id << ": ";
+        auth_log << message << std::endl;
     }
 
     void log_exit(Session *session, const std::string &reason) {

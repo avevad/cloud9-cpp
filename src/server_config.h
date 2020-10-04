@@ -88,7 +88,8 @@ static const char *CONFIG_OPTION_USERS_DIRECTORY = "cloud.users_directory";
 static const char *CONFIG_OPTION_NODES_HEAD_DIRECTORY = "cloud.nodes_head_directory";
 static const char *CONFIG_OPTION_NODES_DATA_DIRECTORY = "cloud.nodes_data_directory";
 static const char *CONFIG_OPTION_ACCESS_LOG = "cloud.access_log";
-static const std::string CONFIG_DEFAULT_ACCESS_LOG;
+static const char *CONFIG_OPTION_AUTH_LOG = "cloud.auth_log";
+static const std::string CONFIG_DEFAULT_ACCESS_LOG, CONFIG_DEFAULT_AUTH_LOG;
 static const char *CONFIG_OPTION_INVITES_FILE = "cloud.invites_file";
 static const char *CONFIG_OPTION_NET_BUFFER_SIZE = "cloud.net_buffer_size";
 static const LUA_INTEGER CONFIG_DEFAULT_NET_BUFFER_SIZE = DEFAULT_NET_BUFFER_SIZE;
@@ -145,6 +146,7 @@ void load_config(LauncherConfig &config) {
     config.nodes_head_directory = global_get_config_string(state, CONFIG_OPTION_NODES_HEAD_DIRECTORY);
     config.nodes_data_directory = global_get_config_string(state, CONFIG_OPTION_NODES_DATA_DIRECTORY);
     config.access_log = global_get_config_string(state, CONFIG_OPTION_ACCESS_LOG, &CONFIG_DEFAULT_ACCESS_LOG);
+    config.auth_log = global_get_config_string(state, CONFIG_OPTION_AUTH_LOG, &CONFIG_DEFAULT_AUTH_LOG);
     config.invites_file = global_get_config_string(state, CONFIG_OPTION_INVITES_FILE);
     config.net_buffer_size = global_get_config_integer(state, CONFIG_OPTION_NET_BUFFER_SIZE,
                                                        &CONFIG_DEFAULT_NET_BUFFER_SIZE);

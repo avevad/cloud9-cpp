@@ -17,6 +17,10 @@ CloudServer::CloudServer(NetServer *net, const CloudConfig &config) : config(con
         access_log << "-----------------------------------------------" << std::endl;
         access_log << "[" << generate_timestamp() << "] Server started" << std::endl;
     }
+    if (!config.auth_log.empty()) {
+        auth_log.open(config.auth_log, std::ios_base::out | std::ios_base::app);
+        auth_log << "[" << generate_timestamp() << "] Server started" << std::endl;
+    }
 }
 
 CloudServer::~CloudServer() {
@@ -39,7 +43,7 @@ void CloudServer::connector_routine() {
             NetConnection *connection = new BufferedConnection(config.net_buffer_size, net->accept());
             auto *session = new Session(connection, session_id++);
             sessions.insert(session);
-            auto *listener = new std::thread(&CloudServer::listener_routine, this, session);
+            auto *listener = new std::thread(&CloudServer::init_routine, this, session);
             listeners.push_back(listener);
         } catch (std::runtime_error &error) {
             if (shutting_down) break;
@@ -48,7 +52,7 @@ void CloudServer::connector_routine() {
     }
 }
 
-void CloudServer::listener_routine(Session *session) {
+void CloudServer::init_routine(Session *session) {
     char *body = nullptr;
     try {
         char client_header[CLOUD9_FULL_HEADER_LENGTH];
@@ -89,6 +93,7 @@ void CloudServer::listener_routine(Session *session) {
             if (ok) {
                 log_response(session);
                 send_uint16(session->connection, INIT_OK);
+                log_auth(session, "successful password authentication");
             } else INIT_ERR(INIT_ERR_AUTH_FAILED);
         } else if (cmd == INIT_CMD_REGISTER) {
             if (size == 0) INIT_ERR(INIT_ERR_MALFORMED_CMD);
@@ -124,12 +129,13 @@ void CloudServer::listener_routine(Session *session) {
             session->login = login;
             log_response(session);
             send_uint16(session->connection, INIT_OK);
+            log_auth(session, "successful registration (" + invite + ")");
         } else INIT_ERR(INIT_ERR_INVALID_CMD);
 #undef INIT_ERR
     } catch (std::exception &exception) {
         if (!shutting_down) {
             log_exit(session, exception.what());
-            std::cerr << "failed to initialize client connection: " << exception.what() << std::endl;
+            log_auth(session, std::string("failed to connect: ") + exception.what());
         }
         delete[] body;
         session->connection->close();
@@ -138,6 +144,11 @@ void CloudServer::listener_routine(Session *session) {
         delete session;
         return;
     }
+    control_routine(session);
+}
+
+void CloudServer::control_routine(Session *session) {
+    char *body = nullptr;
     bool goodbye = false;
     try {
         while (!shutting_down) {
@@ -1155,8 +1166,10 @@ void CloudServer::listener_routine(Session *session) {
     } catch (std::exception &exception) {
         if (!shutting_down && !goodbye) {
             log_exit(session, exception.what());
-            std::cerr << "'" << session->login << "' listener stopped with exception: " << exception.what()
-                      << std::endl;
+        }
+        if (!shutting_down) {
+            if (goodbye) log_auth(session, "logout");
+            else log_auth(session, "disconnected: " + std::string(exception.what()));
         }
     }
     std::unique_lock locker(lock);

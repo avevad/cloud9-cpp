@@ -12,8 +12,11 @@ cloud = {
 	-- The directory where the users' files' data will be stored.
 	nodes_data_directory = "nodes_data",
 
-	-- The file where the server will write its logs to. Could be omitten, default value is nil, which means that no logging will be done.
+	-- The file where the server will write its logs to. Could be omitted, default value is nil, which means that no logging will be done.
 	access_log = "access.log",
+
+    -- The file where the server will write all authentication attempts to. If omitted, no auth logging will be done.
+    auth_log = "auth.log",
 
 	-- To made user registering possible, you need to create a invitation codes and send them to the people which you want to register.
 	-- The invitation codes should be put in this file.
