@@ -31,16 +31,20 @@ private:
     std::map<uint32_t, ServerResponse> responses;
     uint32_t current_id = 0;
     bool connected = true;
+    Node token;
 
     static void negotiate(NetConnection *net);
 
 public:
+
     CloudClient(NetConnection *net, const std::string &login, const std::function<std::string()> &password_callback);
 
     CloudClient(NetConnection *net, const std::string &login, const std::function<std::string()> &invite_callback,
                 const std::function<std::string()> &password_callback);
 
     ~CloudClient();
+
+    CloudClient(const CloudClient &client);
 
     void wait() {
         if (listener.joinable()) listener.join();
@@ -92,6 +96,10 @@ public:
     Node copy_node(Node node, const std::string &name);
 
     void rename_node(Node node, const std::string &name);
+
+    Node request_token();
+
+    Node get_token() const { return token; };
 
     ServerResponse wait_response(uint32_t id, std::unique_lock<std::mutex> &locker);
 };

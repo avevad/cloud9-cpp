@@ -18,6 +18,8 @@ public:
 
     virtual void flush() = 0;
 
+    virtual NetConnection *clone() = 0;
+
     virtual ~NetConnection() = default;
 };
 
@@ -80,6 +82,10 @@ public:
     void flush() override {
         connection->send(buffer_fullness, buffer);
         buffer_fullness = 0;
+    }
+
+    BufferedConnection *clone() override {
+        return new BufferedConnection(buffer_size, connection);
     }
 
     ~BufferedConnection() override {

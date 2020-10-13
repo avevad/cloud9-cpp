@@ -152,15 +152,25 @@ bool test_groups(int, char **) {
     return true;
 }
 
-std::map<std::string, std::function<bool(int, char **)>> tests{ // NOLINT(cert-err58-cpp)
+bool test_tokens(int, char **) {
+    SIMPLE_TEST_INIT();
+    {
+        CloudClient client1 = *client;
+    }
+    SIMPLE_TEST_CLEANUP();
+    return true;
+}
+
+std::map<std::string, std::function<bool(int, char **)>> tests{
         {"make_node", test_make_node},
         {"homes",     test_homes},
         {"dirs",      test_dirs},
-        {"groups",    test_groups}
+        {"groups",    test_groups},
+        {"tokens",    test_tokens}
 };
 
 int main(int argc, char **argv) {
-    std::srand(std::time(NULL));
+    std::srand(std::time(nullptr));
     signal(SIGPIPE, SIG_IGN);
     if (chdir("../testing")) return 1;
     if (argc == 0 || tests.find(argv[1]) == tests.end()) {

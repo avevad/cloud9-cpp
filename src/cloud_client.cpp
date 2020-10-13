@@ -21,6 +21,7 @@ CloudClient::CloudClient(NetConnection *net, const std::string &login,
         throw CloudInitError(status);
     }
     listener = std::thread([this]() { listener_routine(); });
+    token = request_token();
 }
 
 CloudClient::CloudClient(NetConnection *net, const std::string &login,
@@ -43,7 +44,24 @@ CloudClient::CloudClient(NetConnection *net, const std::string &login,
         throw CloudInitError(status);
     }
     listener = std::thread([this]() { listener_routine(); });
+    token = request_token();
 }
+
+CloudClient::CloudClient(const CloudClient &client) : connection(client.connection->clone()) {
+    negotiate(connection);
+    send_uint16(connection, INIT_CMD_TOKEN);
+    send_uint64(connection, sizeof(Node));
+    Node token = client.get_token();
+    send_exact(connection, sizeof(Node), &token);
+    connection->flush();
+    uint16_t status = read_uint16(connection);
+    if (status != INIT_OK) {
+        throw CloudInitError(status);
+    }
+    listener = std::thread([this]() { listener_routine(); });
+    token = client.get_token();
+}
+
 
 CloudClient::~CloudClient() {
     if (connected) {
@@ -472,6 +490,21 @@ void CloudClient::rename_node(Node node, const std::string &name) {
     if (response.status != REQUEST_OK) {
         throw CloudRequestError(response.status);
     }
+}
+
+Node CloudClient::request_token() {
+    std::unique_lock<std::mutex> locker(api_lock);
+    send_uint32(connection, current_id);
+    send_uint16(connection, REQUEST_CMD_GET_TOKEN);
+    send_uint64(connection, 0);
+    ServerResponse response = wait_response(current_id++, locker);
+    if (response.status != REQUEST_OK) {
+        delete[] response.body;
+        throw CloudRequestError(response.status);
+    }
+    Node token = *reinterpret_cast<Node *>(response.body);
+    delete[] response.body;
+    return token;
 }
 
 void CloudClient::negotiate(NetConnection *net) {

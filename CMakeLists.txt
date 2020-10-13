@@ -32,7 +32,7 @@ install(TARGETS cloud9d DESTINATION sbin)
 
 enable_testing()
 
-list(APPEND TESTS make_node homes dirs groups)
+list(APPEND TESTS make_node homes dirs groups tokens)
 
 foreach (TEST IN LISTS TESTS)
     add_test(NAME tester_${TEST}_test COMMAND ./tester ${TEST})

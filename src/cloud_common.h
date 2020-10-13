@@ -166,6 +166,7 @@ static const uint64_t INIT_BODY_MAX_SIZE = 1024 * 8; // 8 KiB
 
 static const uint16_t INIT_CMD_AUTH = 1;
 static const uint16_t INIT_CMD_REGISTER = 2;
+static const uint16_t INIT_CMD_TOKEN = 3;
 
 static const uint16_t INIT_OK = 0;
 static const uint16_t INIT_ERR_BODY_TOO_LARGE = 1;
@@ -175,6 +176,7 @@ static const uint16_t INIT_ERR_MALFORMED_CMD = 4;
 static const uint16_t INIT_ERR_INVALID_INVITE_CODE = 5;
 static const uint16_t INIT_ERR_USER_EXISTS = 6;
 static const uint16_t INIT_ERR_INVALID_USERNAME = 7;
+static const uint16_t INIT_ERR_INVALID_TOKEN = 8;
 
 static const uint64_t REQUEST_BODY_MAX_SIZE = 1024 * 1024 * 8; // 8 MiB
 static const uint16_t REQUEST_CMD_GET_HOME = 1;
@@ -200,6 +202,7 @@ static const uint16_t REQUEST_CMD_GROUP_LIST = 20;
 static const uint16_t REQUEST_CMD_COPY_NODE = 21;
 static const uint16_t REQUEST_CMD_MOVE_NODE = 22;
 static const uint16_t REQUEST_CMD_RENAME_NODE = 23;
+static const uint16_t REQUEST_CMD_GET_TOKEN = 24;
 
 static const uint16_t REQUEST_OK = 0;
 static const uint16_t REQUEST_ERR_BODY_TOO_LARGE = 1;
@@ -262,6 +265,7 @@ static std::string init_status_string(uint16_t status) {
     else if (status == INIT_ERR_INVALID_INVITE_CODE) return "invite code is invalid";
     else if (status == INIT_ERR_USER_EXISTS) return "user exists";
     else if (status == INIT_ERR_INVALID_USERNAME) return "username is invalid";
+    else if (status == INIT_ERR_INVALID_TOKEN) return "token is invalid";
     else return "unknown init error (" + std::to_string(status) + ")";
 }
 
@@ -312,6 +316,7 @@ static std::string request_name(uint16_t request) {
     else if (request == REQUEST_CMD_COPY_NODE) return "COPY";
     else if (request == REQUEST_CMD_MOVE_NODE) return "MOVE";
     else if (request == REQUEST_CMD_RENAME_NODE) return "RENM";
+    else if (request == REQUEST_CMD_GET_TOKEN) return "GTOK";
     else return std::to_string(request);
 }
 
@@ -407,6 +412,12 @@ static std::string generate_timestamp() {
     std::time_t time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
     std::string time_c = std::ctime(&time);
     return time_c.substr(0, time_c.length() - 1);
+}
+
+static Node generate_id() {
+    Node node;
+    for (unsigned char &b : node.id) b = std::rand() % 0xFF;
+    return node;
 }
 
 static std::string prompt_password(const std::string &prompt) {

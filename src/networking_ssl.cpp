@@ -33,7 +33,7 @@ void shutdown_networking_ssl() {
     EVP_cleanup();
 }
 
-SSLConnection::SSLConnection(const char *host, int port) {
+SSLConnection::SSLConnection(const char *host, int port) : host(host), port(port) {
     addrinfo *server_info, hints;
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_INET;
@@ -110,6 +110,11 @@ bool SSLConnection::is_valid() {
 
 void SSLConnection::flush() {
 
+}
+
+SSLConnection *SSLConnection::clone() {
+    if (host.empty()) throw std::runtime_error("non-cloneable connection");
+    return new SSLConnection(host.c_str(), port);
 }
 
 SSLServer::SSLServer(int port, const char *cert, const char *key, pem_password_cb *password_cb, void *password_cb_ud)

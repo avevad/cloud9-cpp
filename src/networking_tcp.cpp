@@ -6,7 +6,7 @@
 #include <iostream>
 #include "networking_tcp.h"
 
-TCPConnection::TCPConnection(const char *host, uint16_t port) {
+TCPConnection::TCPConnection(const char *host, uint16_t port) : host(host), port(port) {
     addrinfo *server_info, hints;
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_INET;
@@ -65,6 +65,11 @@ void TCPConnection::close() {
 
 bool TCPConnection::is_valid() {
     return sock != -1;
+}
+
+TCPConnection *TCPConnection::clone() {
+    if (host.empty()) throw std::runtime_error("non-cloneable connection");
+    return new TCPConnection(host.c_str(), port);
 }
 
 TCPConnection::~TCPConnection() {

@@ -1,6 +1,7 @@
 #ifndef CLOUD9_NETWORKING_SSL_H
 #define CLOUD9_NETWORKING_SSL_H
 
+#include <string>
 #include "networking.h"
 
 void init_networking_ssl();
@@ -11,12 +12,15 @@ class SSLServer;
 
 class SSLConnection final : public NetConnection {
 private:
+    const std::string host;
+    const int port;
+
     SSL *ssl;
     int sock;
     SSL_CTX *context;
     bool connected = true;
 
-    SSLConnection(SSL *ssl, int sock) : ssl(ssl), sock(sock), context(nullptr) {}
+    SSLConnection(SSL *ssl, int sock) : ssl(ssl), sock(sock), context(nullptr), host(), port() {}
 
     friend SSLServer;
 public:
@@ -31,6 +35,8 @@ public:
     bool is_valid() override;
 
     void flush() override;
+
+    SSLConnection *clone() override;
 
     ~SSLConnection() override;
 };

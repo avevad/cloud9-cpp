@@ -130,6 +130,20 @@ void CloudServer::init_routine(Session *session) {
             log_response(session);
             send_uint16(session->connection, INIT_OK);
             log_auth(session, "successful registration (" + invite + ")");
+        } else if (cmd == INIT_CMD_TOKEN) {
+            if (size != sizeof(Node)) INIT_ERR(INIT_ERR_MALFORMED_CMD);
+            Node token = *reinterpret_cast<Node *>(body);
+            log_init(session, std::pair("token", node2string(token)));
+            std::string login;
+            for (Session *s : sessions) {
+                if (s->token == token) login = s->login;
+            }
+            if (login.empty()) INIT_ERR(INIT_ERR_INVALID_TOKEN);
+            session->login = login;
+            session->token = token;
+            log_auth(session, "successful token reconnection");
+            log_response(session);
+            send_uint16(session->connection, INIT_OK);
         } else INIT_ERR(INIT_ERR_INVALID_CMD);
 #undef INIT_ERR
     } catch (std::exception &exception) {
@@ -144,10 +158,10 @@ void CloudServer::init_routine(Session *session) {
         delete session;
         return;
     }
-    control_routine(session);
+    listener_routine(session);
 }
 
-void CloudServer::control_routine(Session *session) {
+void CloudServer::listener_routine(Session *session) {
     char *body = nullptr;
     bool goodbye = false;
     try {
@@ -1156,6 +1170,12 @@ void CloudServer::control_routine(Session *session) {
                 log_response(session);
                 send_uint16(session->connection, REQUEST_OK);
                 send_uint64(session->connection, 0);
+            } else if (cmd == REQUEST_CMD_GET_TOKEN) {
+                log_request(session, REQUEST_CMD_GET_TOKEN);
+                log_response(session, std::pair("token", node2string(session->token)));
+                send_uint16(session->connection, REQUEST_OK);
+                send_uint64(session->connection, sizeof(Node));
+                send_exact(session->connection, sizeof(Node), &session->token);
             } else {
                 log_request(session, cmd);
                 log_error(session, REQUEST_ERR_INVALID_CMD);
@@ -1268,8 +1288,7 @@ bool CloudServer::get_home_owner(Node node, uint16_t &error, std::string &owner)
 Node CloudServer::generate_node() {
     Node node;
     do {
-        for (unsigned char &b : node.id)
-            b = std::rand() % 0xFF;
+        node = generate_id();
     } while (std::filesystem::is_regular_file(get_node_data_path(node)));
     return node;
 }
@@ -1404,6 +1423,8 @@ bool CloudServer::use_invite(const std::string &invite) {
     return ok;
 }
 
-CloudServer::Session::Session(NetConnection *connection, size_t id) : connection(connection), id(id) {
+CloudServer::Session::Session(NetConnection *connection, size_t id, Node token) :
+        connection(connection), id(id),
+        token(generate_id()) {
 
 }

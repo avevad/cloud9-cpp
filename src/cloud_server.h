@@ -47,8 +47,9 @@ private:
         std::vector<FileDescriptor> fds;
         std::mutex lock;
         size_t id;
+        Node token;
 
-        Session(NetConnection *connection, size_t id);
+        Session(NetConnection *connection, size_t id, Node token = generate_id());
     };
 
 private:
@@ -69,7 +70,7 @@ private:
 
     void init_routine(Session *session);
 
-    void control_routine(Session *session);
+    void listener_routine(Session *session);
 
     std::pair<char *, size_t> get_node_head(Node node);
 

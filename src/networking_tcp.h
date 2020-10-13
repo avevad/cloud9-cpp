@@ -1,6 +1,7 @@
 #ifndef CLOUD9_NETWORKING_TCP_H
 #define CLOUD9_NETWORKING_TCP_H
 
+#include <string>
 #include "networking.h"
 
 #define TCP_SOCKET_QUEUE_LENGTH 8
@@ -11,9 +12,12 @@ class TCPConnection final : public NetConnection {
 private:
     friend TCPServer;
 
+    const std::string host;
+    const uint16_t port;
+
     int sock;
 
-    explicit TCPConnection(int sock) : sock(sock) {}
+    explicit TCPConnection(int sock) : sock(sock), host(), port() {}
 
 public:
     TCPConnection() = delete;
@@ -29,6 +33,8 @@ public:
     bool is_valid() override;
 
     void flush() override;
+
+    TCPConnection *clone() override;
 
     ~TCPConnection() override;
 };
